@@ -1,8 +1,9 @@
 import {
+  authorizeRoles,
   baseProcedure,
   createTRPCRouter,
   protectedProcedure,
-} from "@/trpc/init";
+} from "@/backend/trpc/init";
 import { SignUpSchema, SignInSchema } from "./Auth.entity";
 import { CookieService } from "@/backend/modules/shared/auth";
 import { z } from "zod";
@@ -45,6 +46,7 @@ export class AuthRouter {
 
       // Protected: Get current user
       me: protectedProcedure.query(async ({ ctx }) => {
+        authorizeRoles(ctx.user!, ["user", "admin"]);
         return await ctx.container.authService.me(ctx.user!.userId);
       }),
 

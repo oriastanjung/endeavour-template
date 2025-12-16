@@ -2,7 +2,7 @@
 import "server-only"; // <-- ensure this file cannot be imported from the client
 import { createHydrationHelpers } from "@trpc/react-query/rsc";
 import { cache } from "react";
-import { createCallerFactory } from "./init";
+import { createCallerFactory } from "../backend/trpc/init";
 import { createTRPCContext } from "../backend/context";
 import { makeQueryClient } from "./query-client";
 import { appRouter } from "@/backend/_app";

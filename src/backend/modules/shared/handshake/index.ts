@@ -1,6 +1,6 @@
 import { db } from "@/shared/database";
-import { createTRPCRouter } from "@/trpc/init";
-import { baseProcedure } from "@/trpc/init";
+import { createTRPCRouter } from "@/backend/trpc/init";
+import { baseProcedure } from "@/backend/trpc/init";
 import { createLogger } from "@/shared/logger";
 
 const logger = createLogger("handshake");

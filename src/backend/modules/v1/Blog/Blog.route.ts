@@ -1,4 +1,4 @@
-import { baseProcedure, createTRPCRouter } from "@/trpc/init";
+import { baseProcedure, createTRPCRouter } from "@/backend/trpc/init";
 import {
   CreateBlogSchema,
   GetAllBlogSchema,

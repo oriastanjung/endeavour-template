@@ -1,4 +1,4 @@
-import { createTRPCRouter } from "@/trpc/init";
+import { createTRPCRouter } from "@/backend/trpc/init";
 import { HandShakeRouter } from "./modules/shared/handshake";
 // START: INJECT MODULE ROUTER
 import { BlogRouter } from "./modules/v1/Blog/Blog.route";

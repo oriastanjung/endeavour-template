@@ -1,5 +1,5 @@
-import { createTRPCRouter } from "@/trpc/init";
-import { protectedProcedure, adminProcedure } from "@/trpc/init";
+import { createTRPCRouter } from "@/backend/trpc/init";
+import { protectedProcedure, adminProcedure } from "@/backend/trpc/init";
 import {
   GetAllUserSchema,
   CreateUserSchema,

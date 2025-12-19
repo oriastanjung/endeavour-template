@@ -74,8 +74,8 @@ app.get("/health", (req, res) => {
 // Use bull-board router
 app.use("/", serverAdapter.getRouter());
 
-// Start server
-app.listen(PORT, () => {
+// Start server and store reference for graceful shutdown
+const server = app.listen(PORT, () => {
   console.log("\n");
   console.log(
     "╔══════════════════════════════════════════════════════════════════╗"
@@ -118,6 +118,7 @@ app.listen(PORT, () => {
   console.log(`  🔄 Auto-refresh  : Every 1 second`);
   console.log(`  📋 Queues        : foo, bar`);
   console.log(`  ❤️  Health check : http://localhost:${PORT}/health`);
+  console.log(`  🛑 Press Ctrl+C  : Stop server`);
   console.log("");
   console.log(
     "  ┌─────────────────────────────────────────────────────────────┐"
@@ -148,4 +149,33 @@ app.listen(PORT, () => {
   );
   console.log("");
   logger.info(`Bull Board running at http://localhost:${PORT}`);
+});
+
+// Graceful shutdown handler
+const shutdown = (signal: string) => {
+  console.log(`\n🛑 Received ${signal}. Shutting down Bull Board...`);
+  logger.info(`Received ${signal}. Shutting down...`);
+
+  server.close(() => {
+    console.log("✅ Bull Board server closed.");
+    logger.info("Bull Board server closed.");
+    process.exit(0);
+  });
+
+  // Force exit after 5 seconds if server doesn't close
+  setTimeout(() => {
+    console.log("⚠️ Forcing exit...");
+    process.exit(1);
+  }, 5000);
+};
+
+// Listen for termination signals
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGHUP", () => shutdown("SIGHUP"));
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  shutdown("uncaughtException");
 });

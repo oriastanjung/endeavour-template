@@ -11,9 +11,17 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      # Override for Docker network
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://root:root@postgres:5432/postgres?schema=public
+    networks:
+      - endeavour-network
     restart: unless-stopped
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test:
@@ -49,11 +57,48 @@ services:
     env_file:
       - .env
     environment:
+      # Override for Docker network
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://root:root@postgres:5432/postgres?schema=public
       - BULL_BOARD_PORT=3001
+    networks:
+      - endeavour-network
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: endeavour-postgres
+    ports:
+      - "5433:5432" # Use 5433 to avoid conflict with local postgres
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - endeavour-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -71,8 +116,9 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - endeavour-network
     restart: unless-stopped
-    # Redis configuration for persistence
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -87,6 +133,13 @@ services:
         reservations:
           memory: 64M
 
+# Define custom network
+networks:
+  endeavour-network:
+    driver: bridge
+
 volumes:
+  postgres_data:
+    driver: local
   redis_data:
     driver: local

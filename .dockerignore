@@ -62,3 +62,7 @@ docs
 *.md
 !package.json
 !package-lock.json
+
+# Scripts (workers run in separate container)
+# Uncomment below if building ONLY app container
+# scripts/

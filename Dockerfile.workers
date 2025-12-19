@@ -1,7 +1,9 @@
 # ============================================
 # Dockerfile for BullMQ Workers + Bull Board
-# Run separately from Next.js server
+# OPTIMIZED for smaller image size
 # ============================================
+
+# Stage 1: Install production dependencies only
 FROM oven/bun:1-alpine AS deps
 
 WORKDIR /app
@@ -9,11 +11,29 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lockb* ./
 
-# Install ALL dependencies
-RUN bun install --frozen-lockfile
+# Install ONLY production dependencies (much smaller)
+RUN bun install --production --frozen-lockfile
 
 # ============================================
-# Stage 2: Runner
+# Stage 2: Builder (for Prisma generate)
+# ============================================
+FROM oven/bun:1-alpine AS builder
+
+WORKDIR /app
+
+# Copy production node_modules
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy only necessary source files
+COPY package.json ./
+COPY tsconfig.json ./
+COPY prisma ./prisma
+
+# Generate Prisma client
+RUN bunx prisma generate
+
+# ============================================
+# Stage 3: Runner (minimal production image)
 # ============================================
 FROM oven/bun:1-alpine AS runner
 
@@ -27,18 +47,34 @@ ENV BULL_BOARD_PORT=3001
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 worker
 
-# Copy node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy ONLY what's needed from builder
+COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=worker:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy source code needed for workers
+# Copy source files (minimal)
 COPY --chown=worker:nodejs package.json ./
 COPY --chown=worker:nodejs tsconfig.json ./
-COPY --chown=worker:nodejs src ./src
-COPY --chown=worker:nodejs scripts ./scripts
 COPY --chown=worker:nodejs prisma ./prisma
 
-# Generate Prisma client
-RUN bunx prisma generate
+# Copy only the specific source folders needed for workers
+COPY --chown=worker:nodejs src/backend ./src/backend
+COPY --chown=worker:nodejs src/shared ./src/shared
+COPY --chown=worker:nodejs src/config ./src/config
+COPY --chown=worker:nodejs scripts/run_all_workers.ts ./scripts/run_all_workers.ts
+COPY --chown=worker:nodejs scripts/run_bull_board.ts ./scripts/run_bull_board.ts
+
+# Create startup script
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'echo "Starting Bull Board on port 3001..."' >> /app/start.sh && \
+    echo 'bun run scripts/run_bull_board.ts &' >> /app/start.sh && \
+    echo 'BULL_BOARD_PID=$!' >> /app/start.sh && \
+    echo 'echo "Starting Workers..."' >> /app/start.sh && \
+    echo 'bun run scripts/run_all_workers.ts &' >> /app/start.sh && \
+    echo 'WORKERS_PID=$!' >> /app/start.sh && \
+    echo 'trap "kill $BULL_BOARD_PID $WORKERS_PID 2>/dev/null; exit 0" SIGTERM SIGINT' >> /app/start.sh && \
+    echo 'wait -n' >> /app/start.sh && \
+    echo 'exit $?' >> /app/start.sh && \
+    chmod +x /app/start.sh
 
 # Switch to non-root user
 USER worker
@@ -49,28 +85,5 @@ EXPOSE 3001
 # Health check using Bull Board health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
-
-# Start script that runs both workers and bull-board
-COPY --chown=worker:nodejs <<EOF /app/start.sh
-#!/bin/sh
-echo "Starting Bull Board on port 3001..."
-bun run scripts/run_bull_board.ts &
-BULL_BOARD_PID=$!
-
-echo "Starting Workers..."
-bun run scripts/run_all_workers.ts &
-WORKERS_PID=$!
-
-# Handle shutdown gracefully
-trap "kill $BULL_BOARD_PID $WORKERS_PID; exit 0" SIGTERM SIGINT
-
-# Wait for any process to exit
-wait -n
-
-# Exit with status of process that exited first
-exit $?
-EOF
-
-RUN chmod +x /app/start.sh
 
 CMD ["/bin/sh", "/app/start.sh"]

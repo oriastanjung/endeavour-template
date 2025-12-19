@@ -37,29 +37,29 @@ services:
           memory: 256M
 
   # ============================================
-  # BullMQ Workers (Background Jobs)
+  # BullMQ Workers + Bull Board Dashboard
   # ============================================
   workers:
     build:
       context: .
       dockerfile: Dockerfile.workers
     container_name: endeavour-workers
+    ports:
+      - "3001:3001" # Bull Board Dashboard
     env_file:
       - .env
+    environment:
+      - BULL_BOARD_PORT=3001
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
-    # Scale workers as needed
-    # docker-compose up --scale workers=3
     deploy:
       resources:
         limits:
           memory: 256M
         reservations:
           memory: 128M
-      # For horizontal scaling in production
-      # replicas: 2
 
   # ============================================
   # Redis for BullMQ Job Queue

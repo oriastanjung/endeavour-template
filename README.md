@@ -216,6 +216,11 @@ REDIS_PORT=6379
 REDIS_PASSWORD=""
 REDIS_QUEUE_NAME="test"
 
+# Bull Board Dashboard
+BULL_BOARD_PORT=3001
+NEXT_PUBLIC_BULL_BOARD_PASSWORD=admin123
+NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
+
 # For Docker (use service name as hostname):
 # REDIS_HOST=redis
 ```
@@ -927,6 +932,74 @@ await queue.add("email", data, {
 });
 ```
 
+### 📊 Bull Board Dashboard
+
+ENDEAVOUR includes **Bull Board** - a web-based UI dashboard for monitoring and managing your job queues.
+
+#### Quick Start
+
+```bash
+# Run all at once (Next.js + Workers + Bull Board)
+bun run dev:all
+
+# Or run separately in different terminals:
+bun run dev          # Terminal 1: Next.js
+bun run workers:run  # Terminal 2: Workers
+bun run board        # Terminal 3: Bull Board
+```
+
+#### Access Dashboard
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| **Via Next.js** | `http://localhost:3000/bull-board` | Password protected (admin123) |
+| **Direct** | `http://localhost:3001` | Standalone server |
+
+#### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Queue Overview** | See all queues with job counts |
+| **Job Status** | View waiting, active, completed, failed, delayed jobs |
+| **Job Details** | Inspect job payload and result |
+| **Retry Failed Jobs** | One-click retry for failed jobs |
+| **Remove Jobs** | Clean up completed/failed jobs |
+| **Real-time Updates** | Auto-refresh every 1 second |
+| **Pause/Resume** | Control queue processing |
+
+#### Adding New Queues to Dashboard
+
+When you create a new queue, register it in bull-board:
+
+```typescript
+// scripts/run_bull_board.ts
+import { newQueue } from "../src/backend/modules/shared/bullmq/connections/queues";
+
+createBullBoard({
+  queues: [
+    new BullMQAdapter(fooQueue),
+    new BullMQAdapter(barQueue),
+    new BullMQAdapter(newQueue), // Add new queue here
+  ],
+  serverAdapter,
+});
+```
+
+#### Environment Variables
+
+```env
+BULL_BOARD_PORT=3001
+NEXT_PUBLIC_BULL_BOARD_PASSWORD=admin123
+NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
+```
+
+#### Security Note
+
+⚠️ **Important**: The bull-board dashboard is password protected via `/bull-board` page. For production, consider:
+- Changing the default password via `NEXT_PUBLIC_BULL_BOARD_PASSWORD`
+- Adding IP whitelist to the standalone server
+- Using a VPN or internal network only
+
 ---
 
 ## 🗺 Roadmap
@@ -943,6 +1016,7 @@ await queue.add("email", data, {
 - [X] Docker deployment configuration
 - [X] Module generator CLI
 - [X] BullMQ job queue with progress tracking
+- [X] Bull Board dashboard with password protection
 
 ### 🔄 In Progress
 
@@ -974,8 +1048,10 @@ bun run prisma:seed   # Seed the database
 bun run prisma:studio # Open Prisma Studio
 bun run module:create # Generate new module
 
-# BullMQ Workers
+# BullMQ Workers & Dashboard
+bun run dev:all           # 🚀 Start ALL (Next.js + Workers + Bull Board)
 bun run workers:run       # Start all workers
+bun run board             # Start Bull Board dashboard
 bun run workers:test      # Test publish foo job
 bun run workers:test-bar  # Test publish bar job with progress
 bun run workers:test-multi # Test publish multiple jobs

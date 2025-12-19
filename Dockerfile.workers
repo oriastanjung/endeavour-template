@@ -1,5 +1,5 @@
 # ============================================
-# Dockerfile for BullMQ Workers
+# Dockerfile for BullMQ Workers + Bull Board
 # Run separately from Next.js server
 # ============================================
 FROM oven/bun:1-alpine AS deps
@@ -21,6 +21,7 @@ WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
+ENV BULL_BOARD_PORT=3001
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
@@ -42,9 +43,34 @@ RUN bunx prisma generate
 # Switch to non-root user
 USER worker
 
-# Health check (optional - workers should stay running)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD pgrep -f "run_all_workers" || exit 1
+# Expose Bull Board port
+EXPOSE 3001
 
-# Start workers
-CMD ["bun", "run", "workers:run"]
+# Health check using Bull Board health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+# Start script that runs both workers and bull-board
+COPY --chown=worker:nodejs <<EOF /app/start.sh
+#!/bin/sh
+echo "Starting Bull Board on port 3001..."
+bun run scripts/run_bull_board.ts &
+BULL_BOARD_PID=$!
+
+echo "Starting Workers..."
+bun run scripts/run_all_workers.ts &
+WORKERS_PID=$!
+
+# Handle shutdown gracefully
+trap "kill $BULL_BOARD_PID $WORKERS_PID; exit 0" SIGTERM SIGINT
+
+# Wait for any process to exit
+wait -n
+
+# Exit with status of process that exited first
+exit $?
+EOF
+
+RUN chmod +x /app/start.sh
+
+CMD ["/bin/sh", "/app/start.sh"]

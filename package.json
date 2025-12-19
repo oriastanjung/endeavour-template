@@ -13,7 +13,11 @@
     "prisma:studio": "bunx prisma studio",
     "prisma:pull": "bunx prisma db pull",
     "prisma:seed": "bun run prisma/seeder/index.ts",
-    "module:create": "bun run scripts/create_module.ts"
+    "module:create": "bun run scripts/create_module.ts",
+    "workers:run": "bun run scripts/run_all_workers.ts",
+    "workers:test": "bun run scripts/test_publish_job.ts",
+    "workers:test-bar": "bun run scripts/test_bar_job.ts",
+    "workers:test-multi": "bun run scripts/test_multi_job.ts"
   },
   "type": "module",
   "dependencies": {
@@ -51,6 +55,7 @@
     "@trpc/react-query": "^11.8.0",
     "@trpc/server": "^11.8.0",
     "@trpc/tanstack-react-query": "^11.6.0",
+    "bullmq": "^5.66.1",
     "class-variance-authority": "^0.7.1",
     "client-only": "^0.0.1",
     "clsx": "^2.1.1",
@@ -60,6 +65,7 @@
     "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "ioredis": "^5.8.2",
     "js-yaml": "^4.1.0",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",

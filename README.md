@@ -16,6 +16,7 @@
   <a href="#architecture">Architecture</a> •
   <a href="#authentication">Authentication</a> •
   <a href="#module-generator">Module Generator</a> •
+  <a href="#bullmq-job-queue">BullMQ</a> •
   <a href="#deployment">Deployment</a>
 </p>
 
@@ -151,6 +152,7 @@ bun run module:create
 | **Backend**   | tRPC v11, Next.js API Routes                 |
 | **Database**  | PostgreSQL, Prisma ORM                       |
 | **Auth**      | Session-based, JWT, bcrypt                   |
+| **Job Queue** | BullMQ, Redis                                |
 | **State**     | TanStack Query (React Query)                 |
 | **Styling**   | TailwindCSS, CSS Variables                   |
 | **Logging**   | Winston                                      |
@@ -165,6 +167,7 @@ bun run module:create
 
 - Node.js 18+ or Bun
 - PostgreSQL database
+- Redis server (for BullMQ job queue)
 - Git
 
 ### Installation
@@ -197,10 +200,24 @@ bun run dev
 ### Environment Variables
 
 ```env
+# Database
 DATABASE_URL="postgresql://user:password@localhost:5432/endeavour?schema=public"
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+
+# API
 NEXT_PUBLIC_API_URL="http://localhost:3000"
 NODE_ENV="development"
+
+# Authentication
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+
+# Redis (BullMQ Job Queue)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=""
+REDIS_QUEUE_NAME="test"
+
+# For Docker (use service name as hostname):
+# REDIS_HOST=redis
 ```
 
 ---
@@ -227,6 +244,11 @@ src/
 │   └── modules/
 │       ├── shared/       # Shared modules
 │       │   ├── auth/     # JWT, Password, Cookie services
+│       │   ├── bullmq/   # 🆕 Job Queue System
+│       │   │   ├── connections/  # Redis, Queue, QueueEvents
+│       │   │   ├── workers/      # Job processors
+│       │   │   ├── utils/        # addQueue, addQueueEvent
+│       │   │   └── types/        # Job type definitions
 │       │   └── handshake/
 │       └── v1/           # API version 1
 │           ├── Auth/     # Authentication module
@@ -253,6 +275,11 @@ src/
     ├── client.tsx       # Client-side tRPC
     ├── server.ts        # Server-side tRPC
     └── index.tsx        # tRPC React Query integration
+
+scripts/                  # 🆕 CLI & Worker Scripts
+├── run_all_workers.ts   # Start all BullMQ workers
+├── create_module.ts     # Module generator
+└── test_*.ts            # Job testing scripts
 ```
 
 ---
@@ -464,41 +491,440 @@ Available endpoints:
 
 ## 🐳 Deployment
 
-### Docker
+### Docker Architecture
 
-```bash
-# Build the image
-docker build -t endeavour .
-
-# Run the container
-docker run -p 3000:3000 --env-file .env endeavour
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    docker-compose up                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐   │
+│  │  endeavour-   │  │  endeavour-   │  │  endeavour-   │   │
+│  │     app       │  │    workers    │  │     redis     │   │
+│  │               │  │               │  │               │   │
+│  │  Next.js      │  │  BullMQ Jobs  │  │  Job Queue    │   │
+│  │  Port: 3000   │  │  Background   │  │  Port: 6379   │   │
+│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘   │
+│          │                  │                  │            │
+│          └──────────────────┴──────────────────┘            │
+│                      Docker Network                         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Docker Compose
+### Quick Start with Docker
+
+```bash
+# Start all services (app + workers + redis)
+docker-compose up --build
+
+# Run in background
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f app
+docker-compose logs -f workers
+
+# Scale workers (run 3 instances)
+docker-compose up --scale workers=3
+
+# Stop all
+docker-compose down
+```
+
+### Docker Files
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Next.js application server |
+| `Dockerfile.workers` | BullMQ workers (background jobs) |
+| `docker-compose.yml` | Orchestrates all services |
+
+### Docker Compose (Full Example)
 
 ```yaml
 services:
+  # Next.js Application
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: endeavour-app
     ports:
       - "3000:3000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     depends_on:
-      - postgres
+      redis:
+        condition: service_healthy
 
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: endeavour
+  # BullMQ Workers (Background Jobs)
+  workers:
+    build:
+      context: .
+      dockerfile: Dockerfile.workers
+    container_name: endeavour-workers
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 1  # Scale as needed
+
+  # Redis (Job Queue)
+  redis:
+    image: redis:7-alpine
+    container_name: endeavour-redis
+    ports:
+      - "6379:6379"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  postgres_data:
+  redis_data:
+```
+
+### Environment for Docker
+
+Create `.env` for Docker deployment:
+
+```env
+DATABASE_URL="postgresql://user:password@postgres:5432/endeavour"
+NEXT_PUBLIC_API_URL=http://localhost:3000
+JWT_SECRET="your-production-secret"
+
+# Use Docker service name as hostname
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=""
+REDIS_QUEUE_NAME="production"
+```
+
+---
+
+## ⚡ BullMQ Job Queue
+
+ENDEAVOUR includes **BullMQ** for handling background jobs, scheduled tasks, and long-running operations. This enables your application to handle heavy workloads without blocking the main thread.
+
+### Why BullMQ?
+
+| Feature | Benefit |
+|---------|---------|
+| **Redis-backed** | Distributed, persistent, and fast |
+| **Separate Queue per Job Type** | Isolated, scalable, no job collision |
+| **Progress Tracking** | Real-time progress updates via events |
+| **Retries & Backoff** | Automatic retry with exponential backoff |
+| **Concurrency Control** | Configurable workers per queue |
+| **Lifecycle Events** | Monitor active, completed, failed, stalled jobs |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PUBLISHERS (API/Services)                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  addQueue({ jobName: "foo", data: {...} })                     │
+│           ↓                                                     │
+│      fooQueue.add("foo", data)  →  [Redis Queue: "foo"]        │
+│                                                                 │
+│  addQueueEvent({ jobName: "bar", data: {...}, callbacks })     │
+│           ↓                                                     │
+│      barQueue.add("bar", data)  →  [Redis Queue: "bar"]        │
+│           ↓                                                     │
+│      barQueueEvents.on("progress"|"completed"|"failed")        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                         REDIS                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ Queue: "foo" │  │ Queue: "bar" │  │ Queue: "baz" │   ...    │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                       WORKERS (Separate Process)                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  bun run workers:run                                           │
+│                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐                      │
+│  │  Foo Worker     │  │  Bar Worker     │                      │
+│  │  Queue: "foo"   │  │  Queue: "bar"   │                      │
+│  │  Concurrency: 5 │  │  Concurrency: 5 │                      │
+│  │                 │  │  + Progress     │                      │
+│  └─────────────────┘  └─────────────────┘                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### File Structure
+
+```
+src/backend/modules/shared/bullmq/
+├── connections/
+│   ├── redis.ts          # Redis connection for BullMQ
+│   ├── queues.ts         # Queue instances per job type
+│   └── queueEvents.ts    # QueueEvents per job type (for tracking)
+├── types/
+│   └── dataSentType.ts   # Job type definitions
+├── utils/
+│   ├── addQueue.ts       # Fire-and-forget job publishing
+│   └── addQueueEvent.ts  # Job publishing with progress/callbacks
+└── workers/
+    ├── wokersFoo.ts      # Worker for "foo" jobs
+    └── workerBar.ts      # Worker for "bar" jobs with progress
+
+scripts/
+├── run_all_workers.ts    # Start all workers (separate process)
+├── test_publish_job.ts   # Test publishing foo job
+├── test_bar_job.ts       # Test publishing bar job with progress
+└── test_multi_job.ts     # Test publishing multiple jobs
+```
+
+### Quick Start
+
+#### 1. Configure Redis Connection
+
+```env
+# .env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_QUEUE_NAME=default
+```
+
+#### 2. Define Job Types
+
+```typescript
+// src/backend/modules/shared/bullmq/types/dataSentType.ts
+export type JobType = "foo" | "bar" | "email" | "report";
+
+export type DataSentType<T> = {
+  jobName: JobType;
+  data: T;
+};
+```
+
+#### 3. Create a Queue
+
+```typescript
+// src/backend/modules/shared/bullmq/connections/queues.ts
+import { Queue } from "bullmq";
+import { redisConnection } from "./redis";
+import { JobType } from "../types/dataSentType";
+
+// Add new queue for each job type
+export const emailQueue = createQueue("email");
+export const reportQueue = createQueue("report");
+
+// Update the helper
+export const getQueueByJobType = (jobType: JobType): Queue => {
+  const queues: Record<JobType, Queue> = {
+    foo: fooQueue,
+    bar: barQueue,
+    email: emailQueue,
+    report: reportQueue,
+  };
+  return queues[jobType];
+};
+```
+
+#### 4. Create a Worker
+
+```typescript
+// src/backend/modules/shared/bullmq/workers/workerEmail.ts
+import { Worker } from "bullmq";
+import { redisConnection } from "../connections/redis";
+import { createLogger } from "@/shared/logger";
+
+const logger = createLogger("worker-email");
+
+export const startEmailWorker = async ({ concurrency = 5 } = {}) => {
+  const worker = new Worker(
+    "email", // Queue name - must match the queue defined above
+    async (job) => {
+      logger.info(`[PROCESSING] job=${job.id}`, job.data);
+      
+      // Your business logic here
+      const { to, subject, body } = job.data;
+      await sendEmail(to, subject, body);
+      
+      return { sent: true, timestamp: new Date().toISOString() };
+    },
+    { connection: redisConnection, concurrency }
+  );
+
+  // ========== Lifecycle Event Listeners ==========
+  
+  worker.on("active", (job) => {
+    logger.info(`[ACTIVE] job=${job.id} name=${job.name}`);
+  });
+
+  worker.on("completed", (job, result) => {
+    logger.info(`[COMPLETED] job=${job.id}`, { result });
+  });
+
+  worker.on("failed", (job, err) => {
+    logger.error(`[FAILED] job=${job?.id}`, { error: err.message });
+  });
+
+  worker.on("error", (err) => {
+    logger.error(`[WORKER ERROR]`, { error: err.message });
+  });
+
+  logger.info(`[WORKER STARTED] Email Worker ready, concurrency=${concurrency}`);
+  return worker;
+};
+```
+
+#### 5. Register Worker
+
+```typescript
+// scripts/run_all_workers.ts
+import { startFooWorker } from "../src/backend/modules/shared/bullmq/workers/wokersFoo";
+import { startBarWorker } from "../src/backend/modules/shared/bullmq/workers/workerBar";
+import { startEmailWorker } from "../src/backend/modules/shared/bullmq/workers/workerEmail";
+
+async function main() {
+  const workers = [];
+  
+  workers.push(await startFooWorker());
+  workers.push(await startBarWorker());
+  workers.push(await startEmailWorker());
+  
+  logger.info(`All workers started. Total: ${workers.length}`);
+  
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    await Promise.all(workers.map(w => w.close()));
+    process.exit(0);
+  };
+  
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
+```
+
+### Publishing Jobs
+
+#### Fire-and-Forget (Simple)
+
+```typescript
+import { addQueue } from "@/backend/modules/shared/bullmq/utils/addQueue";
+
+// From any service or API route
+await addQueue({
+  jobName: "email",
+  data: { to: "user@example.com", subject: "Welcome!", body: "..." },
+});
+```
+
+#### With Progress Tracking (Advanced)
+
+```typescript
+import { addQueueEvent, addQueueEventAsync } from "@/backend/modules/shared/bullmq/utils/addQueueEvent";
+
+// Option 1: Fire and forget with callbacks
+await addQueueEvent({
+  jobName: "report",
+  data: { reportId: "123", type: "monthly" },
+  callbacks: {
+    onProgress: (progress) => {
+      console.log(`${progress.percentage}% - ${progress.message}`);
+    },
+    onCompleted: (result) => {
+      console.log("Report generated!", result);
+    },
+    onFailed: (error) => {
+      console.error("Report failed!", error.message);
+    },
+  },
+});
+
+// Option 2: Await completion
+const result = await addQueueEventAsync({
+  jobName: "report",
+  data: { reportId: "123", type: "monthly" },
+  onProgress: (progress) => {
+    console.log(`${progress.percentage}%`);
+  },
+});
+```
+
+### Worker with Progress Reporting
+
+```typescript
+// src/backend/modules/shared/bullmq/workers/workerReport.ts
+async function processReport(job: Job) {
+  const steps = ["Fetching data", "Processing", "Generating PDF", "Uploading"];
+  
+  for (let i = 0; i < steps.length; i++) {
+    await doWork(steps[i]);
+    
+    // Report progress - clients listening via QueueEvents will receive this
+    await job.updateProgress({
+      percentage: Math.round(((i + 1) / steps.length) * 100),
+      message: steps[i],
+      metadata: { step: i + 1, total: steps.length },
+    });
+  }
+  
+  return { success: true, url: "https://..." };
+}
+```
+
+### Running Workers
+
+```bash
+# Start all workers (separate terminal/process)
+bun run workers:run
+
+# Test publishing jobs
+bun run workers:test        # Publish foo job
+bun run workers:test-bar    # Publish bar job with progress
+bun run workers:test-multi  # Publish multiple jobs
+```
+
+### Why This Pattern is Scalable
+
+| Pattern | Benefit |
+|---------|---------|
+| **Separate Queue per Job Type** | Each job type is isolated. Queue A problems don't affect Queue B. |
+| **Worker per Queue** | Scale workers independently. Need more email capacity? Add more email workers. |
+| **Concurrency Control** | Each worker can process N jobs in parallel. Tune per workload. |
+| **Redis-Backed** | Persistent, distributed. Workers can run on different machines. |
+| **Graceful Shutdown** | Workers finish current jobs before shutting down. Zero job loss during deploys. |
+| **Event-Driven Progress** | Real-time updates without polling. Efficient for long-running tasks. |
+| **Lifecycle Logging** | Full observability. Know exactly what's happening at all times. |
+
+### Production Considerations
+
+1. **Separate Process**: Run workers separately from the Next.js server
+2. **Health Checks**: Add `/health` endpoint for worker process
+3. **Metrics**: Integrate with Prometheus/Datadog for monitoring
+4. **Retry Policy**: Configure retries with exponential backoff
+5. **Dead Letter Queue**: Move permanently failed jobs for investigation
+6. **Rate Limiting**: Control job processing rate per queue
+
+```typescript
+// Example: Job with retry policy
+await queue.add("email", data, {
+  attempts: 3,
+  backoff: {
+    type: "exponential",
+    delay: 1000, // 1s, 2s, 4s
+  },
+  removeOnComplete: 1000, // Keep last 1000 completed
+  removeOnFail: 5000,     // Keep last 5000 failed
+});
 ```
 
 ---
@@ -516,12 +942,12 @@ volumes:
 - [X] Session activity monitoring
 - [X] Docker deployment configuration
 - [X] Module generator CLI
+- [X] BullMQ job queue with progress tracking
 
 ### 🔄 In Progress
 
 - [ ] OpenAI SDK integration
 - [ ] Workflow engine
-- [ ] BullMQ job queue
 
 ### 📋 Planned
 
@@ -547,6 +973,12 @@ bun run prisma:push   # Push schema to database
 bun run prisma:seed   # Seed the database
 bun run prisma:studio # Open Prisma Studio
 bun run module:create # Generate new module
+
+# BullMQ Workers
+bun run workers:run       # Start all workers
+bun run workers:test      # Test publish foo job
+bun run workers:test-bar  # Test publish bar job with progress
+bun run workers:test-multi # Test publish multiple jobs
 ```
 
 ---

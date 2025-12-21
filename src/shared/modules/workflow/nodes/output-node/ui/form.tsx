@@ -35,17 +35,14 @@ export const OutputForm: React.FC<NodeFormProps> = ({
 
       <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
         <p className="font-semibold mb-1">How it works:</p>
-        <p className="mb-2">
-          This checks the input of this node (from previous nodes).
-        </p>
         <ul className="list-disc pl-4 space-y-1">
           <li>
             If <strong>Capture entire state</strong> is checked, it dumps
             everything available at this point into <code>outputKey</code>.
           </li>
           <li>
-            Use distinct output nodes to capture specific branches (e.g.,
-            success vs failure).
+            Uncheck to specify exactly what value to capture (e.g.{" "}
+            <code>{"{{nodes.http.output}}"}</code>).
           </li>
         </ul>
       </div>
@@ -60,6 +57,23 @@ export const OutputForm: React.FC<NodeFormProps> = ({
           Capture entire state (not just specific keys)
         </Label>
       </div>
+
+      {data.captureAll === false && (
+        <div className="space-y-2 pt-2 border-t">
+          <Label>Output Value</Label>
+          <MentionTextarea
+            value={(data.outputValue as string) || ""}
+            onChangeValue={(val) => updateData("outputValue", val)}
+            nodes={nodes}
+            placeholder="{{nodes.previousNode.output}}"
+            className="min-h-[40px]"
+          />
+          <p className="text-xs text-muted-foreground">
+            Expression to evaluate and store in{" "}
+            <code>{(data.outputKey as string) || "result"}</code>.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -79,15 +79,45 @@ export const NodePropertiesSheet = () => {
 
     switch (currentNode.type) {
       case "manual.trigger":
-        return <ManualTriggerForm data={data} updateData={updateData} />;
+        return (
+          <ManualTriggerForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
       case "cron.trigger":
-        return <CronTriggerForm data={data} updateData={updateData} />;
+        return (
+          <CronTriggerForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
       case "condition":
-        return <ConditionForm data={data} updateData={updateData} />;
+        return (
+          <ConditionForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
       case "http.request":
-        return <HttpRequestForm data={data} updateData={updateData} />;
+        return (
+          <HttpRequestForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
       case "output":
-        return <OutputForm data={data} updateData={updateData} />;
+        return (
+          <OutputForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
       default:
         return null;
     }

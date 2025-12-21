@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,15 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MentionTextarea } from "../../../ui/components/mention-textarea";
+import type { WorkflowNode } from "../../../types/Workflow";
 
 export interface NodeFormProps {
   data: Record<string, unknown>;
   updateData: (key: string, value: unknown) => void;
+  nodes: WorkflowNode[];
 }
 
 export const HttpRequestForm: React.FC<NodeFormProps> = ({
   data,
   updateData,
+  nodes,
 }) => {
   return (
     <div className="space-y-4">
@@ -44,10 +47,12 @@ export const HttpRequestForm: React.FC<NodeFormProps> = ({
 
       <div className="space-y-2">
         <Label>URL</Label>
-        <Input
+        <MentionTextarea
           value={(data.url as string) || ""}
-          onChange={(e) => updateData("url", e.target.value)}
+          onChangeValue={(val) => updateData("url", val)}
+          nodes={nodes}
           placeholder="https://api.example.com/v1/{{userId}}"
+          className="min-h-[40px]"
         />
         <p className="text-xs text-muted-foreground">
           Supports Handlebars templates: {"{{variable}}"}
@@ -56,31 +61,33 @@ export const HttpRequestForm: React.FC<NodeFormProps> = ({
 
       <div className="space-y-2">
         <Label>Headers (JSON)</Label>
-        <Textarea
+        <MentionTextarea
           value={
             typeof data.headers === "object"
               ? JSON.stringify(data.headers, null, 2)
               : (data.headers as string) || ""
           }
-          onChange={(e) => {
+          onChangeValue={(val) => {
             try {
-              updateData("headers", JSON.parse(e.target.value));
+              updateData("headers", JSON.parse(val));
             } catch {
-              updateData("headers", e.target.value);
+              updateData("headers", val);
             }
           }}
+          nodes={nodes}
           placeholder='{ "Authorization": "Bearer {{token}}" }'
-          rows={3}
+          className="min-h-[80px]"
         />
       </div>
 
       <div className="space-y-2">
         <Label>Body (JSON)</Label>
-        <Textarea
+        <MentionTextarea
           value={(data.body as string) || ""}
-          onChange={(e) => updateData("body", e.target.value)}
+          onChangeValue={(val) => updateData("body", val)}
+          nodes={nodes}
           placeholder='{ "name": "{{name}}", "email": "{{email}}" }'
-          rows={4}
+          className="min-h-[100px]"
         />
         <p className="text-xs text-muted-foreground">
           Request body for POST/PUT/PATCH methods.

@@ -4,9 +4,12 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import type { WorkflowNode } from "../../../types/Workflow";
+
 export interface NodeFormProps {
   data: Record<string, unknown>;
   updateData: (key: string, value: unknown) => void;
+  nodes: WorkflowNode[];
 }
 
 export const CronTriggerForm: React.FC<NodeFormProps> = ({

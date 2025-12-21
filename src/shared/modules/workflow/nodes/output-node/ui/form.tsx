@@ -1,24 +1,32 @@
 "use client";
 
 import React from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MentionTextarea } from "../../../ui/components/mention-textarea";
+import type { WorkflowNode } from "../../../types/Workflow";
 
 export interface NodeFormProps {
   data: Record<string, unknown>;
   updateData: (key: string, value: unknown) => void;
+  nodes: WorkflowNode[];
 }
 
-export const OutputForm: React.FC<NodeFormProps> = ({ data, updateData }) => {
+export const OutputForm: React.FC<NodeFormProps> = ({
+  data,
+  updateData,
+  nodes,
+}) => {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Output Key</Label>
-        <Input
+        <MentionTextarea
           value={(data.outputKey as string) || "result"}
-          onChange={(e) => updateData("outputKey", e.target.value)}
+          onChangeValue={(val) => updateData("outputKey", val)}
+          nodes={nodes}
           placeholder="result"
+          className="min-h-[40px]"
         />
         <p className="text-xs text-muted-foreground">
           Key name for storing the final output in execution state.

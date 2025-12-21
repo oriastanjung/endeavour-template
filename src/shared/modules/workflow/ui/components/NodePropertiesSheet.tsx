@@ -61,13 +61,15 @@ export const NodePropertiesSheet = () => {
   };
 
   const updateData = (key: string, value: any) => {
-    if (!currentNode) return;
-    setCurrentNode({
-      ...currentNode,
-      data: {
-        ...currentNode.data,
-        [key]: value,
-      },
+    setCurrentNode((prevNode) => {
+      if (!prevNode) return null;
+      return {
+        ...prevNode,
+        data: {
+          ...prevNode.data,
+          [key]: value,
+        },
+      };
     });
   };
 

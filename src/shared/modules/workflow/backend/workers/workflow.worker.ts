@@ -136,45 +136,93 @@ export function startWorkflowWorker(options?: { concurrency?: number }) {
 /**
  * Register cron triggers from database
  */
+
 export async function registerCronTriggers() {
-  const triggers = await db.trigger.findMany({
-    where: {
-      type: "cron",
-      isActive: true,
-      workflow: { isActive: true },
+  const activeWorkflows = await db.workflow.findMany({
+    where: { isActive: true },
+    include: {
+      nodes: { where: { type: "cron.trigger" } },
     },
-    include: { workflow: true },
   });
 
-  console.log(`[WorkflowWorker] Registering ${triggers.length} cron triggers`);
-
-  for (const trigger of triggers) {
-    if (!trigger.cronExpr) continue;
-
-    const jobId = `cron-${trigger.id}`;
-
-    // Remove existing repeatable job if any
-    const repeatableJobs = await workflowQueue.getRepeatableJobs();
-    const existing = repeatableJobs.find((j) => j.id === jobId);
-    if (existing) {
-      await workflowQueue.removeRepeatableByKey(existing.key);
+  // Map: cron-NodeId -> Config
+  const desiredConfig = new Map<
+    string,
+    {
+      workflowId: string;
+      cron: string;
+      tz: string;
+      nodeId: string;
     }
+  >();
 
-    // Add new repeatable job
+  activeWorkflows.forEach((wf) => {
+    wf.nodes.forEach((node) => {
+      const cfg = node.config as { cronExpression?: string; timezone?: string };
+      if (cfg.cronExpression) {
+        desiredConfig.set(`cron.trigger-${node.id}`, {
+          workflowId: wf.id,
+          cron: cfg.cronExpression,
+          tz: cfg.timezone ?? "UTC",
+          nodeId: node.id,
+        });
+      }
+    });
+  });
+
+  const existingJobs = await workflowQueue.getRepeatableJobs();
+  // DEBUG: Inspect what jobs we are getting
+  console.log(
+    "[WorkflowWorker] Raw Existing Jobs:",
+    JSON.stringify(
+      existingJobs.map((j) => ({ id: j.id, key: j.key, pattern: j.pattern })),
+      null,
+      2
+    )
+  );
+
+  // Check ALL jobs to ensure ghosts are removed
+  const myJobs = existingJobs;
+
+  for (const job of myJobs) {
+    const jobId = job.id || "unknown";
+    const target = desiredConfig.get(jobId);
+
+    if (!target) {
+      // Deleted or Ghost
+      if (job.key) {
+        await workflowQueue.removeRepeatableByKey(job.key);
+        console.log(`[WorkflowWorker] Removed (Deleted/Ghost): ${jobId}`);
+      }
+    } else {
+      // Check for changes
+      const isPatternSame = job.pattern === target.cron;
+      const isTzSame = job.tz === target.tz;
+
+      if (!isPatternSame || !isTzSame) {
+        // Changed
+        if (job.key) {
+          await workflowQueue.removeRepeatableByKey(job.key);
+          console.log(`[WorkflowWorker] Removed (Changed): ${jobId}`);
+        }
+        // We leave it in desiredConfig map, so it gets added below
+      } else {
+        // Unchanged - Remove from map so we don't add it again
+        desiredConfig.delete(jobId);
+      }
+    }
+  }
+
+  // 2. Add remaining jobs in map (New or Updated)
+  for (const [jobId, config] of desiredConfig.entries()) {
     await workflowQueue.add(
       "cron",
-      { workflowId: trigger.workflowId },
+      { workflowId: config.workflowId, nodeId: config.nodeId },
       {
-        repeat: {
-          pattern: trigger.cronExpr,
-          tz: trigger.timezone ?? "UTC",
-        },
-        jobId,
+        repeat: { pattern: config.cron, tz: config.tz },
+        jobId: jobId,
       }
     );
-
-    console.log(
-      `[WorkflowWorker] Registered cron trigger for workflow ${trigger.workflowId}: ${trigger.cronExpr}`
-    );
+    console.log(`[WorkflowWorker] Added/Updated: ${jobId} ${config.cron}`);
   }
 }

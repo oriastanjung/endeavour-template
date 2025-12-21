@@ -4,6 +4,7 @@
 import { db as prisma } from "@/shared/database";
 import { isValidDAG } from "../engine/graph";
 import type { WorkflowNode, WorkflowEdge, Prisma } from "@prisma/client";
+import { registerCronTriggers } from "../workers/workflow.worker";
 
 export type CreateWorkflowInput = {
   name: string;
@@ -97,6 +98,11 @@ export class WorkflowsService {
         },
       },
       include: { nodes: true, edges: true },
+    });
+
+    // Refresh cron triggers
+    await registerCronTriggers().catch((err) => {
+      console.error("Failed to refresh cron triggers:", err);
     });
 
     return workflow;
@@ -193,9 +199,9 @@ export class WorkflowsService {
     }
 
     // Update in transaction
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Update workflow metadata
-      const workflow = await tx.workflow.update({
+      await tx.workflow.update({
         where: { id },
         data: {
           ...data,
@@ -203,35 +209,124 @@ export class WorkflowsService {
         },
       });
 
-      // If nodes provided, replace all nodes
+      // SYNC LOGIC with FK Safety & Consistency:
+
+      // 1. Fetch current state UNCONDITIONALLY to allow validation
+      const existingNodes = await tx.workflowNode.findMany({
+        where: { workflowId: id },
+        select: { id: true },
+      });
+      const existingNodeIds = new Set(existingNodes.map((n) => n.id));
+
+      const existingEdges = await tx.workflowEdge.findMany({
+        where: { workflowId: id },
+        select: { id: true },
+      });
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id));
+
+      // 2. Validate & Filter Inputs
+      // We must ignore edges that point to nodes that won't exist after this update.
+      // Active Nodes = Nodes in the input list (if provided) OR existing nodes in DB (if nodes arg not provided, meaning no changes to nodes)
+      const activeNodeIds = nodes
+        ? new Set(nodes.map((n) => n.id))
+        : existingNodeIds;
+
+      // Filter input edges (if provided) to ensure they only connect currently active nodes
+      const validEdges =
+        edges?.filter(
+          (e) =>
+            activeNodeIds.has(e.sourceNodeId) &&
+            activeNodeIds.has(e.targetNodeId)
+        ) ?? [];
+
+      // 3. DELETE PHASE (Edges first, then Nodes)
+      if (edges) {
+        // Use validEdges to determine what to keep.
+        // Any edge NOT in validEdges (including zombies) will be treated as "removed" and deleted.
+        const inputEdgeIds = new Set(validEdges.map((e) => e.id));
+        const edgesToDelete = existingEdges.filter(
+          (e) => !inputEdgeIds.has(e.id)
+        );
+
+        if (edgesToDelete.length > 0) {
+          await tx.workflowEdge.deleteMany({
+            where: {
+              id: { in: edgesToDelete.map((e) => e.id) },
+              workflowId: id,
+            },
+          });
+        }
+      }
+
       if (nodes) {
-        await tx.workflowNode.deleteMany({ where: { workflowId: id } });
-        await tx.workflowNode.createMany({
-          data: nodes.map((node) => ({
-            id: node.id,
-            workflowId: id,
+        const inputNodeIds = new Set(nodes.map((n) => n.id));
+        const nodesToDelete = existingNodes.filter(
+          (n) => !inputNodeIds.has(n.id)
+        );
+        if (nodesToDelete.length > 0) {
+          await tx.workflowNode.deleteMany({
+            where: {
+              id: { in: nodesToDelete.map((n) => n.id) },
+              workflowId: id,
+            },
+          });
+        }
+      }
+
+      // 3. UPSERT PHASE (Nodes first, then Edges)
+      if (nodes) {
+        // Upsert nodes
+        for (const node of nodes) {
+          const nodeData = {
             type: node.type,
             label: node.label,
             positionX: node.positionX,
             positionY: node.positionY,
             config: node.config as Prisma.InputJsonValue,
-          })),
-        });
+          };
+
+          if (existingNodeIds.has(node.id)) {
+            await tx.workflowNode.update({
+              where: { id: node.id },
+              data: nodeData,
+            });
+          } else {
+            await tx.workflowNode.create({
+              data: {
+                ...nodeData,
+                id: node.id,
+                workflowId: id,
+              },
+            });
+          }
+        }
       }
 
-      // If edges provided, replace all edges
       if (edges) {
-        await tx.workflowEdge.deleteMany({ where: { workflowId: id } });
-        await tx.workflowEdge.createMany({
-          data: edges.map((edge) => ({
-            id: edge.id,
-            workflowId: id,
+        // Upsert edges (using validEdges to avoid zombies)
+        for (const edge of validEdges) {
+          const edgeData = {
             sourceNodeId: edge.sourceNodeId,
             targetNodeId: edge.targetNodeId,
             label: edge.label,
             condition: edge.condition as Prisma.InputJsonValue,
-          })),
-        });
+          };
+
+          if (existingEdgeIds.has(edge.id)) {
+            await tx.workflowEdge.update({
+              where: { id: edge.id },
+              data: edgeData,
+            });
+          } else {
+            await tx.workflowEdge.create({
+              data: {
+                ...edgeData,
+                id: edge.id,
+                workflowId: id,
+              },
+            });
+          }
+        }
       }
 
       return tx.workflow.findUnique({
@@ -239,15 +334,29 @@ export class WorkflowsService {
         include: { nodes: true, edges: true },
       });
     });
+
+    // Refresh cron triggers
+    await registerCronTriggers().catch((err) => {
+      console.error("Failed to refresh cron triggers:", err);
+    });
+
+    return result;
   }
 
   /**
    * Delete workflow
    */
   async delete(workflowId: string) {
-    return prisma.workflow.delete({
+    const result = await prisma.workflow.delete({
       where: { id: workflowId },
     });
+
+    // Refresh cron triggers
+    await registerCronTriggers().catch((err) => {
+      console.error("Failed to refresh cron triggers:", err);
+    });
+
+    return result;
   }
 
   /**
@@ -262,10 +371,17 @@ export class WorkflowsService {
       throw new Error("Workflow not found");
     }
 
-    return prisma.workflow.update({
+    const result = await prisma.workflow.update({
       where: { id: workflowId },
       data: { isActive: !workflow.isActive },
     });
+
+    // Refresh cron triggers
+    await registerCronTriggers().catch((err) => {
+      console.error("Failed to refresh cron triggers:", err);
+    });
+
+    return result;
   }
 }
 

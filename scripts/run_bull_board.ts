@@ -6,6 +6,10 @@ import {
   fooQueue,
   barQueue,
 } from "../src/backend/modules/shared/bullmq/connections/queues";
+import {
+  workflowQueue,
+  nodeQueue,
+} from "../src/shared/modules/workflow/backend/queue";
 import { createLogger } from "@/shared/logger";
 
 const logger = createLogger("bull-board");
@@ -21,6 +25,8 @@ createBullBoard({
   queues: [
     new BullMQAdapter(fooQueue, { readOnlyMode: false }),
     new BullMQAdapter(barQueue, { readOnlyMode: false }),
+    new BullMQAdapter(workflowQueue, { readOnlyMode: false }),
+    new BullMQAdapter(nodeQueue, { readOnlyMode: false }),
     // Add more queues here as needed
   ],
   serverAdapter,
@@ -116,7 +122,7 @@ const server = app.listen(PORT, () => {
   console.log("");
   console.log(`  ✅ Dashboard URL : http://localhost:${PORT}`);
   console.log(`  🔄 Auto-refresh  : Every 1 second`);
-  console.log(`  📋 Queues        : foo, bar`);
+  console.log(`  📋 Queues        : foo, bar, workflow_queue, node_queue`);
   console.log(`  ❤️  Health check : http://localhost:${PORT}/health`);
   console.log(`  🛑 Press Ctrl+C  : Stop server`);
   console.log("");

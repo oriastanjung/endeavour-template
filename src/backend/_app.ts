@@ -6,6 +6,9 @@ import { UserRouter } from "./modules/v1/User/User.route";
 import { AuthRouter } from "./modules/v1/Auth/Auth.route";
 // END: INJECT MODULE ROUTER
 
+// Workflow module router (from shared modules)
+import { workflowRouter } from "@/shared/modules/workflow/backend/trpc/router";
+
 export const appRouter = createTRPCRouter({
   handshake: new HandShakeRouter().generateRouter(),
   // START: INJECT MODULE ROUTER
@@ -13,6 +16,9 @@ export const appRouter = createTRPCRouter({
   user: new UserRouter().generateRouter(),
   auth: new AuthRouter().generateRouter(),
   // END: INJECT MODULE ROUTER
+
+  // Workflow automation module
+  workflow: workflowRouter,
 });
 
 export type AppRouter = typeof appRouter;

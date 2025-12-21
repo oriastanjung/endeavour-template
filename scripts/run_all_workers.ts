@@ -4,6 +4,13 @@ import { startBarWorker } from "../src/backend/modules/shared/bullmq/workers/wor
 import { createLogger } from "@/shared/logger";
 import { Worker } from "bullmq";
 
+// Workflow workers
+import {
+  startWorkflowWorker,
+  registerCronTriggers,
+} from "@/shared/modules/workflow/backend/workers/workflow.worker";
+import { startNodeWorker } from "@/shared/modules/workflow/backend/workers/node.worker";
+
 const logger = createLogger("run_all_workers");
 
 // Symbols for visual output
@@ -63,10 +70,20 @@ async function main() {
     workerNames.push("bar");
     console.log(`   ${SYMBOLS.CHECK}  Bar Worker started`);
 
-    // Add more workers here...
-    // const emailWorker = await startEmailWorker();
-    // workers.push(emailWorker);
-    // console.log(`   ${SYMBOLS.CHECK}  Email Worker started`);
+    // Start Workflow Workers
+    const workflowWorker = startWorkflowWorker({ concurrency: 3 });
+    workers.push(workflowWorker);
+    workerNames.push("workflow");
+    console.log(`   ${SYMBOLS.CHECK}  Workflow Worker started`);
+
+    const nodeWorker = startNodeWorker({ concurrency: 5 });
+    workers.push(nodeWorker);
+    workerNames.push("node");
+    console.log(`   ${SYMBOLS.CHECK}  Node Worker started`);
+
+    // Register cron triggers
+    await registerCronTriggers();
+    console.log(`   ${SYMBOLS.CHECK}  Cron triggers registered`);
   } catch (error) {
     console.log(`\n${SYMBOLS.CROSS}  Failed to start workers!`);
     logger.error("Worker startup failed", {

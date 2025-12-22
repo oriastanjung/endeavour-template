@@ -84,6 +84,10 @@ export interface ItemListsNodeData extends BaseNodeData {
 
 export type WorkflowNodeData =
   | BaseNodeData
+
+  // START INJECT DATA UNION HERE
+
+  // END INJECT DATA UNION HERE
   | MessageNodeData
   | ConditionNodeData
   | SwitchNodeData
@@ -94,9 +98,6 @@ export type WorkflowNodeData =
   | CodeNodeData
   | EditFieldsNodeData
   | ItemListsNodeData;
-// START INJECT DATA UNION HERE
-
-// END INJECT DATA UNION HERE
 
 export type WorkflowNode = Node<WorkflowNodeData, WorkflowNodeType>;
 export type WorkflowEdge = Edge;

@@ -1,5 +1,6 @@
 import type { Node, Edge } from "@xyflow/react";
 // START IMPORT HERE
+
 // END IMPORT HERE
 
 export type WorkflowNodeType =
@@ -17,6 +18,7 @@ export type WorkflowNodeType =
   | "code"
   | "output";
 // START INJECT HERE
+
 // END INJECT HERE
 
 export interface BaseNodeData extends Record<string, unknown> {
@@ -92,6 +94,9 @@ export type WorkflowNodeData =
   | CodeNodeData
   | EditFieldsNodeData
   | ItemListsNodeData;
+// START INJECT DATA UNION HERE
+
+// END INJECT DATA UNION HERE
 
 export type WorkflowNode = Node<WorkflowNodeData, WorkflowNodeType>;
 export type WorkflowEdge = Edge;

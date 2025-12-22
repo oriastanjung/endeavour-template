@@ -19,7 +19,8 @@
     "workers:test-bar": "bun run scripts/test_bar_job.ts",
     "workers:test-multi": "bun run scripts/test_multi_job.ts",
     "board": "bun run scripts/run_bull_board.ts",
-    "dev:all": "bun run prisma:generate && (bun run workers:run & bun run board & next dev)"
+    "dev:all": "bun run prisma:generate && (bun run workers:run & bun run board & next dev)",
+    "workflow:create-node": "bun run scripts/create_workflow_node.ts"
   },
   "type": "module",
   "dependencies": {

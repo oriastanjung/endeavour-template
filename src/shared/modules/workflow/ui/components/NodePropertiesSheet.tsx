@@ -31,6 +31,9 @@ import { EditFieldsForm } from "../../nodes/edit-fields-node/ui/form";
 import { ItemListsForm } from "../../nodes/item-lists-node/ui/form";
 import { CodeForm } from "../../nodes/code-node/ui/form";
 
+// START INJECTION NODE HERE
+// END INJECTION NODE HERE
+
 export const NodePropertiesSheet = () => {
   const { nodes: contextNodes, setNodes } = useWorkflowContext();
   const [currentNode, setCurrentNode] = useState<WorkflowNode | null>(null);
@@ -174,6 +177,9 @@ export const NodePropertiesSheet = () => {
         return (
           <CodeForm data={data} updateData={updateData} nodes={contextNodes} />
         );
+      // START INJECTION NODE HERE
+
+      // END INJECTION NODE HERE
       default:
         return null;
     }

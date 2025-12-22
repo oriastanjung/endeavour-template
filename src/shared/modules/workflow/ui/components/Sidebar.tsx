@@ -66,6 +66,10 @@ const listNodes: NodeCategory[] = [
       { type: "code", label: "Code", icon: Code2 },
     ],
   },
+  {
+    category: "Custom",
+    nodes: [],
+  },
 ];
 
 export const Sidebar: React.FC = () => {

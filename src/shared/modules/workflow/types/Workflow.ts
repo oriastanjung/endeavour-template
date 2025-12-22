@@ -14,6 +14,8 @@ export type WorkflowNodeType =
   | "item.lists"
   | "code"
   | "output";
+// START INJECT HERE
+// END INJECT HERE
 
 export interface BaseNodeData extends Record<string, unknown> {
   label: string;
@@ -71,6 +73,10 @@ export interface ItemListsNodeData extends BaseNodeData {
   sortKey?: string;
   sortOrder?: "asc" | "desc";
 }
+
+// Start Inject Node Data Here
+
+// END INJECT NODE DATA HERE
 
 export type WorkflowNodeData =
   | BaseNodeData

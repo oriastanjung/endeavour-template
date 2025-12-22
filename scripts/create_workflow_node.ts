@@ -371,7 +371,7 @@ async function main() {
 
   injectIntoFile(
     workflowTypesPath,
-    "  // START INJECT HERE",
+    "// START INJECT HERE",
     `  | "${typeName}"`,
     "after"
   );

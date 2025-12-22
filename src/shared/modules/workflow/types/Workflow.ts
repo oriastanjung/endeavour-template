@@ -7,6 +7,9 @@ export type WorkflowNodeType =
   | "manual.trigger"
   | "cron.trigger"
   | "webhook.trigger"
+  // START INJECT HERE
+
+  // END INJECT HERE
   | "condition"
   | "switch"
   | "merge"
@@ -17,9 +20,6 @@ export type WorkflowNodeType =
   | "item.lists"
   | "code"
   | "output";
-// START INJECT HERE
-
-// END INJECT HERE
 
 export interface BaseNodeData extends Record<string, unknown> {
   label: string;
@@ -84,7 +84,6 @@ export interface ItemListsNodeData extends BaseNodeData {
 
 export type WorkflowNodeData =
   | BaseNodeData
-
   // START INJECT DATA UNION HERE
 
   // END INJECT DATA UNION HERE

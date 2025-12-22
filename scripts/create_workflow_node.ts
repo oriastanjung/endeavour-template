@@ -281,12 +281,13 @@ async function main() {
 
   // Strip "Node" suffix if present (case-insensitive) to avoid duplication
   // e.g. "TestNode" -> "Test"
-  const cleanNodeName = rawNodeName.replace(/node$/i, "");
+  const cleanNodeName = rawNodeName.replace(/node$/i, "").trim();
 
-  const pascalName = toPascalCase(cleanNodeName);
-  const kebabName = toKebabCase(cleanNodeName);
-  const typeName = kebabName; // e.g. "openai" or "test"
-  const folderName = `${kebabName}-node`; // e.g. "openai-node" or "test-node"
+  // Normalize/Sanitize names
+  const kebabName = toKebabCase(cleanNodeName); // e.g. "openai" (from OPENAI or Openai)
+  const pascalName = toPascalCase(kebabName); // e.g. "Openai"
+  const typeName = kebabName; // e.g. "openai"
+  const folderName = `${kebabName}-node`; // e.g. "openai-node"
 
   log.success(`Node Name: ${pascalName}`);
   log.info(`Type: ${typeName}`);
@@ -331,7 +332,7 @@ async function main() {
 
   fs.writeFileSync(
     path.join(uiDir, "index.tsx"),
-    generateUiIndexFile(pascalName, { type: typeName, label: rawNodeName })
+    generateUiIndexFile(pascalName, { type: typeName, label: pascalName })
   );
   log.file("Created", `nodes/${folderName}/ui/index.tsx`);
 
@@ -371,7 +372,7 @@ async function main() {
 
   injectIntoFile(
     workflowTypesPath,
-    "// START INJECT HERE",
+    "  // START INJECT HERE",
     `  | "${typeName}"`,
     "after"
   );
@@ -393,7 +394,7 @@ async function main() {
   // Inject into WorkflowNodeData union
   injectIntoFile(
     workflowTypesPath,
-    "// START INJECT DATA UNION HERE",
+    "  // START INJECT DATA UNION HERE",
     `  | ${pascalName}NodeData`,
     "before"
   );
@@ -418,7 +419,7 @@ async function main() {
     );
 
     if (regex.test(sidebarContent)) {
-      const replacement = `$1\n      { type: "${typeName}", label: "${rawNodeName}", icon: Code2 },`;
+      const replacement = `$1\n      { type: "${typeName}", label: "${pascalName}", icon: Code2 },`;
       sidebarContent = sidebarContent.replace(regex, replacement);
       fs.writeFileSync(sidebarPath, sidebarContent);
       log.success(`Added node to ${category} category in Sidebar.tsx`);

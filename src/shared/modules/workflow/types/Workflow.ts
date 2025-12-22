@@ -1,4 +1,6 @@
 import type { Node, Edge } from "@xyflow/react";
+// START IMPORT HERE
+// END IMPORT HERE
 
 export type WorkflowNodeType =
   | "manual.trigger"

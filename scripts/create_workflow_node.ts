@@ -377,10 +377,9 @@ async function main() {
   );
 
   // Inject Config Import
-  // We need to add the import at the top. Let's find the ExampleNodeConfig import and add after it.
   injectIntoFile(
     workflowTypesPath,
-    'import { ExampleNodeConfig } from "../nodes/example-node/sheet";',
+    "// START IMPORT HERE",
     `import { ${pascalName}NodeConfig } from "../nodes/${folderName}/sheet";`,
     "after"
   );
@@ -391,37 +390,13 @@ async function main() {
     `export interface ${pascalName}NodeData extends ${pascalName}NodeConfig, BaseNodeData {}`
   );
 
-  // Need to handle the union injection.
-  // It's a bit tricky because there is no explicit marker inside the union.
-  // We'll search for the last item we know triggers the end or just before the semi-colon if possible,
-  // or use the marker logic if I add one.
-  // Wait, I saw `| ItemListsNodeData;`
-
-  // Let's use string replacement for the union end
-  try {
-    const workflowContent = fs.readFileSync(workflowTypesPath, "utf-8");
-    const unionEndMarker = "| ItemListsNodeData;";
-    if (workflowContent.includes(unionEndMarker)) {
-      const newUnionContent = `| ItemListsNodeData\n  | ${pascalName}NodeData;`;
-      const newContent = workflowContent.replace(
-        unionEndMarker,
-        newUnionContent
-      );
-      fs.writeFileSync(workflowTypesPath, newContent);
-      log.success(`Injected ${pascalName}NodeData into WorkflowNodeData union`);
-    } else {
-      // Fallback: try to find where ExampleNodeData is if it was added
-      // The file viewing showed it might be missing from the union or implicitly added?
-      // Actually, in the file view, I saw:
-      // export type WorkflowNodeData = ... | ItemListsNodeData;
-      // So I'll trust the replacement above.
-      log.warn(
-        "Could not find union end marker to inject WorkflowNodeData type."
-      );
-    }
-  } catch (e) {
-    log.error("Failed to update WorkflowNodeData union: " + e);
-  }
+  // Inject into WorkflowNodeData union
+  injectIntoFile(
+    workflowTypesPath,
+    "// START INJECT DATA UNION HERE",
+    `  | ${pascalName}NodeData`,
+    "before"
+  );
 
   // 6. Update Sidebar.tsx
   log.divider();

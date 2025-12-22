@@ -280,10 +280,13 @@ export function WorkflowEditor() {
           initialEdges={workflowEdges}
           onChanges={handleChanges}
         >
-          <Sidebar />
           <div className="flex-1 h-full relative">
             <WorkflowCanvas />
             <NodePropertiesSheet />
+            {/* Sidebar as floating button */}
+            <div className="absolute top-4 left-4 z-10">
+              <Sidebar />
+            </div>
           </div>
         </WorkflowProvider>
       </div>

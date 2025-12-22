@@ -1,32 +1,32 @@
-import { memo } from "react";
 import { Position, type NodeProps } from "@xyflow/react";
 import { NodeWrapper } from "../../node-wrapper";
-import { Zap } from "lucide-react";
+import { memo } from "react";
+import { ArrowRightLeft } from "lucide-react";
 import { WorkflowNode } from "../../../types/Workflow";
 
-export const ManualTriggerNode = memo(
+export const MergeNodeComponent = memo(
   ({ id, data, selected }: NodeProps<WorkflowNode>) => {
     return (
       <NodeWrapper
         id={id}
         data={data}
         selected={selected}
-        title="Manual Trigger"
-        icon={Zap}
-        handles={{ source: [Position.Right], target: [] }}
-        className="border-yellow-500/50"
+        title="Merge"
+        icon={ArrowRightLeft}
+        handles={{ source: [Position.Right], target: [Position.Left] }}
+        className="border-gray-500/50"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
-              detail: { id, type: "trigger" },
+              detail: { id, type: "merge" },
             })
           )
         }
       >
-        <p>Flow starts here</p>
+        <p className="text-xs text-muted-foreground">Merges execution paths</p>
       </NodeWrapper>
     );
   }
 );
 
-ManualTriggerNode.displayName = "ManualTriggerNode";
+MergeNodeComponent.displayName = "MergeNodeComponent";

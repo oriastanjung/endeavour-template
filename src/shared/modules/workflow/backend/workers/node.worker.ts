@@ -108,6 +108,11 @@ export function startNodeWorker(options?: { concurrency?: number }) {
         nodeId,
         runId: nodeRun.id,
         state: executionState,
+        // Cast nodesContext to required type since TemplateContext["nodes"] might differ slightly from NodeActionContext["nodes"]
+        nodes: nodesContext as Record<
+          string,
+          { output: unknown; input: unknown }
+        >,
         render,
         log: async (level, message, data) => {
           console.log(`[NodeWorker][${level}] ${message}`, data);

@@ -1,32 +1,34 @@
 import { memo } from "react";
 import { Position, type NodeProps } from "@xyflow/react";
 import { NodeWrapper } from "../../node-wrapper";
-import { Zap } from "lucide-react";
+import { Webhook } from "lucide-react";
 import { WorkflowNode } from "../../../types/Workflow";
 
-export const ManualTriggerNode = memo(
+export const WebhookTriggerNode = memo(
   ({ id, data, selected }: NodeProps<WorkflowNode>) => {
     return (
       <NodeWrapper
         id={id}
         data={data}
         selected={selected}
-        title="Manual Trigger"
-        icon={Zap}
+        title="Webhook"
+        icon={Webhook}
         handles={{ source: [Position.Right], target: [] }}
-        className="border-yellow-500/50"
+        className="border-green-500/50"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
-              detail: { id, type: "trigger" },
+              detail: { id, type: "webhook.trigger" },
             })
           )
         }
       >
-        <p>Flow starts here</p>
+        <div className="text-xs text-muted-foreground">
+          Waiting for HTTP request...
+        </div>
       </NodeWrapper>
     );
   }
 );
 
-ManualTriggerNode.displayName = "ManualTriggerNode";
+WebhookTriggerNode.displayName = "WebhookTriggerNode";

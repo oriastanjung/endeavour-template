@@ -4,7 +4,16 @@
 export type NodeType =
   | "manual.trigger"
   | "cron.trigger"
+  | "webhook.trigger"
+  | "condition"
   | "conditional"
+  | "switch"
+  | "merge"
+  | "wait"
+  | "set"
+  | "edit.fields"
+  | "item.lists"
+  | "code"
   | "http.request"
   | "output";
 
@@ -15,6 +24,8 @@ export type NodeActionContext = {
   runId: string;
   // Accumulated state from prior nodes:
   state: Record<string, unknown>;
+  // Access to previous node execution results (for Code node etc)
+  nodes: Record<string, { output: unknown; input: unknown }>;
   // Helper to render Handlebars templates with safe context:
   render: (template: string, scope?: Record<string, unknown>) => string;
   // Emit logs (simplified - no WorkflowLog table per user request)

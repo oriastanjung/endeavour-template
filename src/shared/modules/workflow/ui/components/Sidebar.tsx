@@ -1,7 +1,22 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Play, Clock, GitBranch, Globe, Flag, Search } from "lucide-react";
+import {
+  Play,
+  Clock,
+  GitBranch,
+  Globe,
+  Flag,
+  Search,
+  Webhook,
+  GitFork,
+  ArrowRightLeft,
+  Timer,
+  PenTool,
+  Pencil,
+  List,
+  Code2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { WorkflowNodeType } from "../../types/Workflow";
@@ -23,6 +38,7 @@ const listNodes: NodeCategory[] = [
     nodes: [
       { type: "manual.trigger", label: "Manual Trigger", icon: Play },
       { type: "cron.trigger", label: "Cron Trigger", icon: Clock },
+      { type: "webhook.trigger", label: "Webhook", icon: Webhook },
     ],
   },
   {
@@ -34,7 +50,21 @@ const listNodes: NodeCategory[] = [
   },
   {
     category: "Logic",
-    nodes: [{ type: "condition", label: "Condition", icon: GitBranch }],
+    nodes: [
+      { type: "condition", label: "Condition", icon: GitBranch },
+      { type: "switch", label: "Switch", icon: GitFork },
+      { type: "merge", label: "Merge", icon: ArrowRightLeft },
+      { type: "wait", label: "Wait", icon: Timer },
+    ],
+  },
+  {
+    category: "Data",
+    nodes: [
+      { type: "set", label: "Set", icon: PenTool },
+      { type: "edit.fields", label: "Edit Fields", icon: Pencil },
+      { type: "item.lists", label: "Item Lists", icon: List },
+      { type: "code", label: "Code", icon: Code2 },
+    ],
   },
 ];
 

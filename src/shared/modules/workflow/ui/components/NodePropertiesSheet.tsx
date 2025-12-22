@@ -22,6 +22,14 @@ import { CronTriggerForm } from "../../nodes/cron-trigger-node/ui/form";
 import { ConditionForm } from "../../nodes/condition-node/ui/form";
 import { HttpRequestForm } from "../../nodes/http-request-node/ui/form";
 import { OutputForm } from "../../nodes/output-node/ui/form";
+import { WebhookTriggerForm } from "../../nodes/webhook-trigger-node/ui/form";
+import { SwitchForm } from "../../nodes/switch-node/ui/form";
+import { MergeForm } from "../../nodes/merge-node/ui/form";
+import { WaitForm } from "../../nodes/wait-node/ui/form";
+import { SetForm } from "../../nodes/set-node/ui/form";
+import { EditFieldsForm } from "../../nodes/edit-fields-node/ui/form";
+import { ItemListsForm } from "../../nodes/item-lists-node/ui/form";
+import { CodeForm } from "../../nodes/code-node/ui/form";
 
 export const NodePropertiesSheet = () => {
   const { nodes: contextNodes, setNodes } = useWorkflowContext();
@@ -119,6 +127,52 @@ export const NodePropertiesSheet = () => {
             updateData={updateData}
             nodes={contextNodes}
           />
+        );
+      case "webhook.trigger":
+        return (
+          <WebhookTriggerForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
+      case "switch":
+        return (
+          <SwitchForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
+      case "merge":
+        return <MergeForm />;
+      case "wait":
+        return (
+          <WaitForm data={data} updateData={updateData} nodes={contextNodes} />
+        );
+      case "set":
+        return (
+          <SetForm data={data} updateData={updateData} nodes={contextNodes} />
+        );
+      case "edit.fields":
+        return (
+          <EditFieldsForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
+      case "item.lists":
+        return (
+          <ItemListsForm
+            data={data}
+            updateData={updateData}
+            nodes={contextNodes}
+          />
+        );
+      case "code":
+        return (
+          <CodeForm data={data} updateData={updateData} nodes={contextNodes} />
         );
       default:
         return null;

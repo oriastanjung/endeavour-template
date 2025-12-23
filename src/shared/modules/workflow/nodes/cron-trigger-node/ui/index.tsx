@@ -9,7 +9,7 @@ import type { WorkflowNode } from "../../../types/Workflow";
 
 export const CronTriggerNode = memo(
   ({ id, data, selected }: NodeProps<WorkflowNode>) => {
-    const config = data.config as { cronExpr?: string } | undefined;
+    // const config = data.config as { cronExpr?: string } | undefined;
 
     return (
       <NodeWrapper
@@ -18,8 +18,9 @@ export const CronTriggerNode = memo(
         selected={selected}
         title="Cron Trigger"
         icon={Clock}
+        iconClassName="text-blue-500"
         handles={{ source: [Position.Right], target: [] }}
-        className="border-blue-500/50"
+        className="border-blue-500/50 w-[95px] p-0 pt-4 rounded-l-[50%]"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
@@ -27,11 +28,7 @@ export const CronTriggerNode = memo(
             })
           )
         }
-      >
-        <p className="text-xs text-muted-foreground">
-          {config?.cronExpr || "Schedule not set"}
-        </p>
-      </NodeWrapper>
+      />
     );
   }
 );

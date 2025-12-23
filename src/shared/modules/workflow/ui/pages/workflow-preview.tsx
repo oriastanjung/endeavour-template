@@ -101,7 +101,12 @@ export function WorkflowPreview() {
     isLoading: executionsLoading,
     refetch: refetchExecutions,
   } = useQuery(
-    trpc.workflow.listExecutions.queryOptions({ workflowId, limit: 50 })
+    trpc.workflow.listExecutions.queryOptions(
+      { workflowId, limit: 50 },
+      {
+        refetchInterval: 1000,
+      }
+    )
   );
 
   // Fetch selected execution details

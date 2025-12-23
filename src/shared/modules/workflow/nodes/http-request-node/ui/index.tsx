@@ -8,7 +8,7 @@ import type { WorkflowNode } from "../../../types/Workflow";
 
 export const HttpRequestNode = memo(
   ({ id, data, selected }: NodeProps<WorkflowNode>) => {
-    const config = data.config as { method?: string; url?: string } | undefined;
+    const config = data as { method?: string; url?: string } | undefined;
     const method = config?.method ?? "GET";
     const url = config?.url ?? "";
     const truncatedUrl = url.length > 25 ? url.substring(0, 25) + "..." : url;
@@ -20,6 +20,7 @@ export const HttpRequestNode = memo(
         selected={selected}
         title="HTTP Request"
         icon={Globe}
+        iconClassName="text-green-500"
         handles={{
           source: [Position.Right],
           target: [Position.Left],

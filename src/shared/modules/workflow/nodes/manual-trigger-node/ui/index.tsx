@@ -13,8 +13,9 @@ export const ManualTriggerNode = memo(
         selected={selected}
         title="Manual Trigger"
         icon={Zap}
+        iconClassName="text-yellow-500"
         handles={{ source: [Position.Right], target: [] }}
-        className="border-yellow-500/50"
+        className="border-yellow-500/50 w-[95px] p-0 pt-4 rounded-l-[50%]"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
@@ -22,9 +23,7 @@ export const ManualTriggerNode = memo(
             })
           )
         }
-      >
-        <p>Flow starts here</p>
-      </NodeWrapper>
+      />
     );
   }
 );

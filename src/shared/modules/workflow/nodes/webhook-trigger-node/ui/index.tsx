@@ -13,8 +13,9 @@ export const WebhookTriggerNode = memo(
         selected={selected}
         title="Webhook"
         icon={Webhook}
+        iconClassName="text-green-500"
         handles={{ source: [Position.Right], target: [] }}
-        className="border-green-500/50"
+        className="border-green-500/50 w-[95px] p-0 pt-4 rounded-l-[50%]"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
@@ -22,11 +23,7 @@ export const WebhookTriggerNode = memo(
             })
           )
         }
-      >
-        <div className="text-xs text-muted-foreground">
-          Waiting for HTTP request...
-        </div>
-      </NodeWrapper>
+      />
     );
   }
 );

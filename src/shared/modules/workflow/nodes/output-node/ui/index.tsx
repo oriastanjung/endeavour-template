@@ -9,8 +9,9 @@ import type { WorkflowNode } from "../../../types/Workflow";
 
 export const OutputNode = memo(
   ({ id, data, selected }: NodeProps<WorkflowNode>) => {
-    const config = data.config as { key?: string } | undefined;
-    const key = config?.key ?? "result";
+    console.log("output node", data);
+    const config = data as { outputKey?: string } | undefined;
+    const key = config?.outputKey ?? "result";
 
     return (
       <NodeWrapper
@@ -19,11 +20,12 @@ export const OutputNode = memo(
         selected={selected}
         title="Output"
         icon={FileOutput}
+        iconClassName="text-orange-500"
         handles={{
           source: [],
           target: [Position.Left],
         }}
-        className="border-orange-500/50"
+        className="border-orange-500/50 w-[95px] p-0 pt-4 rounded-r-[50%]"
         onEdit={() =>
           document.dispatchEvent(
             new CustomEvent("open-node-properties", {
@@ -33,7 +35,10 @@ export const OutputNode = memo(
         }
       >
         <p className="text-xs text-muted-foreground">
-          Key: <span className="font-mono text-orange-400">{key}</span>
+          Key:{" "}
+          <span className="font-mono text-orange-400 line-clamp-1 text-ellipsis truncate">
+            {key}
+          </span>
         </p>
       </NodeWrapper>
     );

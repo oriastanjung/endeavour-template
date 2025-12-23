@@ -26,6 +26,8 @@ export type NodeActionContext = {
   state: Record<string, unknown>;
   // Access to previous node execution results (for Code node etc)
   nodes: Record<string, { output: unknown; input: unknown }>;
+  // IDs of nodes that are directly connected TO this node (incoming edges)
+  incomingNodeIds: string[];
   // Helper to render Handlebars templates with safe context:
   render: (template: string, scope?: Record<string, unknown>) => string;
   // Emit logs (simplified - no WorkflowLog table per user request)

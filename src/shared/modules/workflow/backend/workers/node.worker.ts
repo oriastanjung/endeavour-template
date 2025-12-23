@@ -55,12 +55,58 @@ export function startNodeWorker(options?: { concurrency?: number }) {
         });
       }
 
-      // Update to RUNNING
-      nodeRun = await db.workflowNodeRun.update({
-        where: { id: nodeRun.id },
+      // Check if this node already has a RUNNING or SUCCESS run for this execution
+      // This prevents duplicate execution when multiple edges point to the same node
+      const existingActiveRun = await db.workflowNodeRun.findFirst({
+        where: {
+          executionId,
+          nodeId,
+          id: { not: nodeRun.id },
+          status: { in: ["RUNNING", "SUCCESS"] },
+        },
+      });
+
+      if (existingActiveRun) {
+        console.log(
+          `[NodeWorker] Node ${nodeId} already has active run ${existingActiveRun.id} (${existingActiveRun.status}), skipping duplicate run ${nodeRun.id}`
+        );
+        await db.workflowNodeRun.update({
+          where: { id: nodeRun.id },
+          data: { status: "SKIPPED" },
+        });
+        return; // Exit the job
+      }
+
+      // Update to RUNNING - use updateMany with condition to ensure atomic claim
+      const updateResult = await db.workflowNodeRun.updateMany({
+        where: {
+          id: nodeRun.id,
+          status: "PENDING", // Only update if still PENDING
+        },
         data: { status: "RUNNING", startedAt: new Date() },
+      });
+
+      // If no rows updated, another job already claimed this run or it was already processed
+      if (updateResult.count === 0) {
+        console.log(
+          `[NodeWorker] Node ${nodeId} run ${nodeRun.id} was already claimed, deleting duplicate`
+        );
+        // Delete this duplicate pending run
+        await db.workflowNodeRun.delete({
+          where: { id: nodeRun.id },
+        });
+        return;
+      }
+
+      // Re-fetch the run with includes
+      nodeRun = await db.workflowNodeRun.findUnique({
+        where: { id: nodeRun.id },
         include: { node: true, execution: true },
       });
+
+      if (!nodeRun) {
+        throw new Error(`Node run ${nodeRun} not found after update`);
+      }
 
       publishNodeRunUpdate(executionId, nodeRun.id, "RUNNING", {
         nodeId,
@@ -101,6 +147,11 @@ export function startNodeWorker(options?: { concurrency?: number }) {
 
       const render = createRenderer(templateContext);
 
+      // Find incoming node IDs (nodes that have edges pointing TO this node)
+      const incomingNodeIds = workflow.edges
+        .filter((edge) => edge.targetNodeId === nodeId)
+        .map((edge) => edge.sourceNodeId);
+
       // Build action context
       const actionContext: NodeActionContext = {
         executionId,
@@ -113,6 +164,7 @@ export function startNodeWorker(options?: { concurrency?: number }) {
           string,
           { output: unknown; input: unknown }
         >,
+        incomingNodeIds,
         render,
         log: async (level, message, data) => {
           console.log(`[NodeWorker][${level}] ${message}`, data);
@@ -173,6 +225,57 @@ export function startNodeWorker(options?: { concurrency?: number }) {
         );
 
         for (const nextNode of nextNodes) {
+          // UNIVERSAL: Check if this node already has a run for this execution
+          // This prevents duplicate runs when multiple edges point to the same node
+          const existingRun = await db.workflowNodeRun.findFirst({
+            where: {
+              executionId,
+              nodeId: nextNode.id,
+            },
+          });
+
+          if (existingRun) {
+            console.log(
+              `[NodeWorker] Node ${nextNode.id} already has run ${existingRun.id} (${existingRun.status}), skipping duplicate creation`
+            );
+            continue; // Skip - node already has a run
+          }
+
+          // Special handling for Merge nodes: wait for ALL incoming branches to complete
+          if (nextNode.type === "merge") {
+            // Find all edges pointing to this merge node
+            const incomingEdges = workflow.edges.filter(
+              (edge) => edge.targetNodeId === nextNode.id
+            );
+
+            // Get all source node IDs
+            const requiredNodeIds = incomingEdges.map((e) => e.sourceNodeId);
+
+            // Check if all required nodes have completed
+            const completedNodeRuns = await db.workflowNodeRun.findMany({
+              where: {
+                executionId,
+                nodeId: { in: requiredNodeIds },
+                status: "SUCCESS",
+              },
+            });
+
+            const completedNodeIds = new Set(
+              completedNodeRuns.map((r) => r.nodeId)
+            );
+            const allCompleted = requiredNodeIds.every((id) =>
+              completedNodeIds.has(id)
+            );
+
+            if (!allCompleted) {
+              console.log(
+                `[NodeWorker] Merge node ${nextNode.id} waiting for branches:`,
+                requiredNodeIds.filter((id) => !completedNodeIds.has(id))
+              );
+              continue; // Skip - not all branches completed yet
+            }
+          }
+
           // Create pending node run
           const nextNodeRun = await db.workflowNodeRun.create({
             data: {

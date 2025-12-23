@@ -11,8 +11,8 @@ export const conditionAction: NodeAction = async (input, ctx) => {
   };
 
   const expression = config.expression ?? "";
-  const trueLabel = config.trueLabel ?? "true";
-  const falseLabel = config.falseLabel ?? "false";
+  // const trueLabel = config.trueLabel ?? "true";
+  // const falseLabel = config.falseLabel ?? "false";
 
   // Render the expression with context
   const rendered = ctx.render(expression, { input, state: ctx.state });
@@ -26,6 +26,7 @@ export const conditionAction: NodeAction = async (input, ctx) => {
 
   return {
     output: { decision, rendered },
-    nextEdgeLabel: decision ? trueLabel : falseLabel,
+    // Use handle IDs as default labels to match UI handles
+    nextEdgeLabel: decision ? "true-condition" : "false-condition",
   };
 };

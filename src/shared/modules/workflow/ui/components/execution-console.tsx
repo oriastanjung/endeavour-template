@@ -207,7 +207,7 @@ export function ExecutionConsole({
         )}
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
+        <ScrollArea className="h-[20vh]">
           <div className="space-y-2 pr-2">
             {sortedRuns.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">

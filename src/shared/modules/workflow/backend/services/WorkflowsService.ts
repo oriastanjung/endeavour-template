@@ -22,6 +22,8 @@ export type CreateWorkflowInput = {
     id: string;
     sourceNodeId: string;
     targetNodeId: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
     label?: string;
     condition?: unknown;
   }[];
@@ -60,6 +62,8 @@ export class WorkflowsService {
       workflowId: "",
       sourceNodeId: e.sourceNodeId,
       targetNodeId: e.targetNodeId,
+      sourceHandle: e.sourceHandle ?? null,
+      targetHandle: e.targetHandle ?? null,
       label: e.label ?? null,
       condition: (e.condition ?? null) as Prisma.JsonValue,
       config: null as Prisma.JsonValue,
@@ -92,6 +96,8 @@ export class WorkflowsService {
             id: edge.id,
             sourceNodeId: edge.sourceNodeId,
             targetNodeId: edge.targetNodeId,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
             label: edge.label,
             condition: edge.condition as Prisma.InputJsonValue,
           })),
@@ -186,6 +192,8 @@ export class WorkflowsService {
         workflowId: id,
         sourceNodeId: e.sourceNodeId,
         targetNodeId: e.targetNodeId,
+        sourceHandle: e.sourceHandle ?? null,
+        targetHandle: e.targetHandle ?? null,
         label: e.label ?? null,
         condition: (e.condition ?? null) as Prisma.JsonValue,
         config: null as Prisma.JsonValue,
@@ -308,6 +316,8 @@ export class WorkflowsService {
           const edgeData = {
             sourceNodeId: edge.sourceNodeId,
             targetNodeId: edge.targetNodeId,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
             label: edge.label,
             condition: edge.condition as Prisma.InputJsonValue,
           };

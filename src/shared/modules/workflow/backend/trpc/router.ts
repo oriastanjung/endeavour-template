@@ -30,6 +30,8 @@ const CreateWorkflowSchema = z.object({
       id: z.string(),
       sourceNodeId: z.string(),
       targetNodeId: z.string(),
+      sourceHandle: z.string().optional().nullable(),
+      targetHandle: z.string().optional().nullable(),
       label: z.string().optional(),
       condition: z.unknown().optional(),
     })

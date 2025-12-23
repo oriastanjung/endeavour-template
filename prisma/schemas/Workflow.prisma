@@ -48,6 +48,8 @@ model WorkflowEdge {
     sourceNodeId String
     targetNodeId String
     label        String?
+    sourceHandle String? // The specific source handle ID (for branching)
+    targetHandle String? // The specific target handle ID
     condition    Json? // conditional routing payload (true/false or named branch)
     config       Json?
     createdAt    DateTime @default(now())

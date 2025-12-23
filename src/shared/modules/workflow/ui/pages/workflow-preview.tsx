@@ -203,7 +203,7 @@ export function WorkflowPreview() {
   const executions = executionsData?.executions ?? [];
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Toolbar */}
@@ -276,7 +276,7 @@ export function WorkflowPreview() {
 
           {/* Selected Execution Console Overlay */}
           {selectedExecution && (
-            <div className="absolute bottom-4 left-4 right-4 max-h-[40%]">
+            <div className="absolute bottom-4 left-4 right-4 h-[40%]">
               <ExecutionConsole execution={selectedExecution} />
             </div>
           )}
@@ -290,7 +290,7 @@ export function WorkflowPreview() {
           <h2 className="font-semibold">Execution History</h2>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 h-screen">
           {executionsLoading ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -307,8 +307,14 @@ export function WorkflowPreview() {
               {executions.map((execution) => (
                 <button
                   key={execution.id}
-                  onClick={() => setSelectedExecutionId(execution.id)}
-                  className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
+                  onClick={() => {
+                    if (selectedExecutionId === execution.id) {
+                      setSelectedExecutionId("");
+                    } else {
+                      setSelectedExecutionId(execution.id);
+                    }
+                  }}
+                  className={`w-full text-left p-3 rounded-lg mb-1 transition-colors cursor-pointer ${
                     selectedExecutionId === execution.id
                       ? "bg-primary/10 border border-primary/30"
                       : "hover:bg-muted"

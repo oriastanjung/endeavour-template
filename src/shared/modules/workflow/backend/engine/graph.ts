@@ -76,9 +76,11 @@ export function computeNextNodes(
     (edge) => edge.sourceNodeId === currentNodeId
   );
 
-  // If edge label specified, filter by label
+  // If edge label/handle specified, filter by label OR sourceHandle
   const matchingEdges = edgeLabel
-    ? outgoingEdges.filter((edge) => edge.label === edgeLabel)
+    ? outgoingEdges.filter(
+        (edge) => edge.label === edgeLabel || edge.sourceHandle === edgeLabel
+      )
     : outgoingEdges;
 
   // Get target nodes

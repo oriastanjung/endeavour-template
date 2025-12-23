@@ -97,6 +97,8 @@ export function WorkflowEditor() {
             id: e.id,
             sourceNodeId: e.source,
             targetNodeId: e.target,
+            sourceHandle: e.sourceHandle,
+            targetHandle: e.targetHandle,
             label: e.label as string | undefined,
           })),
         });
@@ -137,6 +139,8 @@ export function WorkflowEditor() {
           id: e.id,
           sourceNodeId: e.source,
           targetNodeId: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: e.targetHandle,
           label: e.label as string | undefined,
         })),
       });
@@ -173,6 +177,8 @@ export function WorkflowEditor() {
       id: e.id,
       source: e.sourceNodeId,
       target: e.targetNodeId,
+      sourceHandle: e.sourceHandle,
+      targetHandle: e.targetHandle,
       label: e.label || undefined,
     })) as Edge[];
   }, [workflow]);

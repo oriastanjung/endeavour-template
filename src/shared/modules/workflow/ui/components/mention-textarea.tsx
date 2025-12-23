@@ -38,7 +38,7 @@ export const MentionTextarea = ({
     id: node.id,
     label: node.data.label || node.type,
     type: node.type,
-    value: `nodes.${node.id}.output`,
+    value: `nodes.[${node.id}].output`,
   }));
 
   // Filter suggestions
@@ -119,7 +119,7 @@ export const MentionTextarea = ({
     if (lastAtPos !== -1) {
       const prefix = value.slice(0, lastAtPos);
       const suffix = value.slice(cursorPosition);
-      const insertion = `nodes.${suggestionId}.output`;
+      const insertion = `nodes.[${suggestionId}].output`;
       const newValue = prefix + insertion + suffix;
 
       onChangeValue(newValue);

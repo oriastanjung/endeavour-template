@@ -96,7 +96,7 @@ export const SetForm = ({
           <li>
             From previous node:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{ nodes.webhook.output.body.id }}"}
+              {"{{ nodes.[webhook].output.body.id }}"}
             </code>
           </li>
           <li>

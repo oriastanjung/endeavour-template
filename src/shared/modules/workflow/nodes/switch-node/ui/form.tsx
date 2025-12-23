@@ -90,7 +90,7 @@ export const SwitchForm = ({
                   }
                   nodes={nodes}
                   className="min-h-[60px] text-xs"
-                  placeholder="{{eq nodes.step1.output.status 'success'}}"
+                  placeholder="{{eq nodes.[step1].output.status 'success'}}"
                 />
               </div>
             </div>
@@ -109,13 +109,13 @@ export const SwitchForm = ({
           <li>
             Equals:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{eq nodes.step1.output.status 'success'}}"}
+              {"{{eq nodes.[step1].output.status 'success'}}"}
             </code>
           </li>
           <li>
             Greater than:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{gt nodes.order.output.amount 100}}"}
+              {"{{gt nodes.[order].output.amount 100}}"}
             </code>
           </li>
           <li>

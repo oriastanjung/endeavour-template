@@ -113,7 +113,7 @@ export const EditFieldsForm = ({
           <li>
             Map field:{" "}
             <code className="bg-background px-1 rounded">
-              Key: new_id, Value: {"{{ nodes.step1.output.id }}"}
+              Key: new_id, Value: {"{{ nodes.[step1].output.id }}"}
             </code>
           </li>
           <li>

@@ -46,7 +46,7 @@ export const ItemListsForm = ({
           value={(data.field as string) || ""}
           onChangeValue={(val) => updateData("field", val)}
           nodes={nodes}
-          placeholder="e.g. nodes.step1.output.users"
+          placeholder="e.g. nodes.[step1].output.users"
           className="min-h-[38px] h-10 py-2"
         />
       </div>

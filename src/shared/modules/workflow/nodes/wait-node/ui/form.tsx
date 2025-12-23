@@ -71,7 +71,7 @@ export const WaitForm = ({
           <li>
             From previous node:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{ nodes.step1.output.duration }}"}
+              {"{{ nodes.[step1].output.duration }}"}
             </code>
           </li>
         </ul>

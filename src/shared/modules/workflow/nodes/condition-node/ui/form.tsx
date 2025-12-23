@@ -36,19 +36,19 @@ export const ConditionForm: React.FC<NodeFormProps> = ({
           <li>
             Check existence:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{#if nodes.http-req.output.body.results}}true{{/if}}"}
+              {"{{#if nodes.[http-req].output.body.results}}true{{/if}}"}
             </code>
           </li>
           <li>
             Check array length:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{gt nodes.http-req.output.body.results.length 0}}"}
+              {"{{gt nodes.[http-req].output.body.results.length 0}}"}
             </code>
           </li>
           <li>
             Comparison:{" "}
             <code className="bg-background px-1 rounded">
-              {"{{eq nodes.step1.output.status 'active'}}"}
+              {"{{eq nodes.[step1].output.status 'active'}}"}
             </code>
           </li>
         </ul>

@@ -76,12 +76,33 @@ export function computeNextNodes(
     (edge) => edge.sourceNodeId === currentNodeId
   );
 
+  console.log(
+    `[computeNextNodes] From node ${currentNodeId}, edgeLabel=${edgeLabel}`
+  );
+  console.log(
+    `[computeNextNodes] Outgoing edges:`,
+    outgoingEdges.map((e) => ({
+      id: e.id,
+      target: e.targetNodeId,
+      label: e.label,
+      sourceHandle: e.sourceHandle,
+    }))
+  );
+
   // If edge label/handle specified, filter by label OR sourceHandle
   const matchingEdges = edgeLabel
     ? outgoingEdges.filter(
         (edge) => edge.label === edgeLabel || edge.sourceHandle === edgeLabel
       )
     : outgoingEdges;
+
+  console.log(
+    `[computeNextNodes] Matching edges:`,
+    matchingEdges.map((e) => ({
+      id: e.id,
+      target: e.targetNodeId,
+    }))
+  );
 
   // Get target nodes
   const targetNodeIds = matchingEdges.map((edge) => edge.targetNodeId);

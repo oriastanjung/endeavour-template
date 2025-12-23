@@ -167,6 +167,8 @@ export function WorkflowPreview() {
       id: edge.id,
       source: edge.sourceNodeId,
       target: edge.targetNodeId,
+      sourceHandle: edge.sourceHandle || undefined,
+      targetHandle: edge.targetHandle || undefined,
       label: edge.label || undefined,
       animated: false,
       markerEnd: { type: MarkerType.ArrowClosed },

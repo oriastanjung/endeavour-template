@@ -23,7 +23,9 @@ export const CodeNodeComponent = memo(
           )
         }
       >
-        <div className="text-xs text-muted-foreground">Custom JS</div>
+        <div className="text-xs text-muted-foreground text-center">
+          Custom JS Code
+        </div>
       </NodeWrapper>
     );
   }

@@ -24,6 +24,15 @@ const embeddings = new GoogleGenerativeAIEmbeddings({
 });
 
 /**
+ * Helper function to convert Zod schema to JSON schema
+ * This wrapper breaks the deep type instantiation chain
+ */
+function convertZodToJsonSchema(schema: ZodTypeAny): Record<string, unknown> {
+  // @ts-expect-error - zodToJsonSchema has deep type instantiation issues with complex generic types
+  return zodToJsonSchema(schema) as Record<string, unknown>;
+}
+
+/**
  * Filter top-K relevant chat history messages given a query.
  *
  * @param history - Array of chat messages { role, content }
@@ -499,9 +508,10 @@ export class GeminiService implements GeminiServiceImplementation {
           if (systemPrompt) {
             toolConfig.systemInstruction = systemPrompt;
           }
+          const jsonSchema = convertZodToJsonSchema(zodSchema);
           const customInstruction = `# ALWAYS OUTPUT IN THE JSON of This Schema : 
           '''json schema 
-          ${JSON.stringify(zodToJsonSchema(zodSchema), null, 2)}
+          ${JSON.stringify(jsonSchema, null, 2)}
           '''`;
           contents.push({
             role: "user",

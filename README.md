@@ -1017,10 +1017,11 @@ NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
 - [X] Module generator CLI
 - [X] BullMQ job queue with progress tracking
 - [X] Bull Board dashboard with password protection
+- [X] OpenAI SDK integration
+- [X] Gemini SDK integration
 
 ### 🔄 In Progress
 
-- [ ] OpenAI SDK integration
 - [ ] Workflow engine
 
 ### 📋 Planned
@@ -1031,6 +1032,231 @@ NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
 - [ ] API documentation (OpenAPI)
 - [ ] E2E testing with Playwright
 - [ ] CI/CD pipelines
+
+---
+
+## 🤖 LLM SDK Integration
+
+ENDEAVOUR includes ready-to-use SDKs for both **OpenAI** and **Google Gemini** with advanced features like structured outputs, web search, file processing, and RAG (Retrieval Augmented Generation).
+
+### Features
+
+| Feature | OpenAI SDK | Gemini SDK |
+|---------|-----------|------------|
+| **Text Generation** | ✅ | ✅ |
+| **Structured Output (Zod)** | ✅ | ✅ |
+| **Image Input** | ✅ | ✅ |
+| **File Input (PDF)** | ✅ | ✅ |
+| **Web Search** | ✅ | ✅ |
+| **URL Context** | ❌ | ✅ |
+| **File Search (Vector Store)** | ✅ | ✅ |
+| **RAG with History** | ✅ | ✅ |
+| **Embeddings** | ✅ | ✅ |
+
+### Environment Variables
+
+```env
+# OpenAI
+OPENAI_API_KEY="sk-..."
+
+# Gemini
+GEMINI_API_KEY="AIza..."
+```
+
+---
+
+### OpenAI SDK Usage
+
+```typescript
+import { openaiService } from "@/shared/llm/openai";
+import { z } from "zod";
+
+// Basic text generation
+const { output, tokens } = await openaiService.callLLM(
+  "What is the capital of Indonesia?"
+);
+console.log(output); // Text response
+console.log(tokens); // { input_token, output_token, total_token }
+
+// With structured output (Zod schema)
+const schema = z.object({
+  name: z.string(),
+  age: z.number().nullable().optional(),
+  country: z.string(),
+});
+
+const { output: parsed } = await openaiService.callLLM(
+  "Who is Joko Widodo?",
+  { zodSchema: schema }
+);
+console.log(parsed.name); // "Joko Widodo"
+
+// With image input
+const { output: imageResult } = await openaiService.callLLM(
+  "Who is this person?",
+  {
+    filePaths: ["https://example.com/image.jpg"],
+    useWebSearch: true,
+  }
+);
+
+// With chat history (RAG)
+const { output: ragResult } = await openaiService.callLLM(
+  "What did I ask before?",
+  {
+    history: [
+      { role: "user", content: "Hello, my name is John" },
+      { role: "assistant", content: "Nice to meet you, John!" },
+    ],
+    isRag: true,
+    topK: 5, // Number of relevant history messages to retrieve
+  }
+);
+```
+
+#### OpenAI SDK Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `systemPrompt` | `string` | - | System message to set behavior |
+| `zodSchema` | `ZodType` | - | Zod schema for structured output |
+| `filePaths` | `string[]` | - | Local paths or URLs to images/files |
+| `model` | `string` | `gpt-4.1-mini` | Model to use |
+| `history` | `array` | - | Chat history `[{ role, content }]` |
+| `topK` | `number` | `5` | Number of relevant history messages |
+| `isRag` | `boolean` | `true` | Enable RAG for history filtering |
+| `useWebSearch` | `boolean` | `true` | Enable web search tool |
+| `timeoutMs` | `number` | - | Request timeout in milliseconds |
+
+---
+
+### Gemini SDK Usage
+
+```typescript
+import { geminiService } from "@/shared/llm/gemini";
+import { z } from "zod";
+
+// Basic text generation with tools
+const { output, tokens } = await geminiService.callLLM(
+  "What is the latest news about Indonesia?",
+  { useTools: true } // Enables Google Search + URL Context
+);
+console.log(output);
+console.log(tokens);
+
+// With structured output (Zod schema)
+const schema = z.object({
+  name: z.string(),
+  age: z.number().nullable().optional(),
+  description: z.string(),
+});
+
+const { output: parsed } = await geminiService.callLLM(
+  "Who is Joko Widodo?",
+  {
+    zodSchema: schema,
+    useTools: false, // Disable tools for single-call structured output
+  }
+);
+console.log(parsed.name);
+
+// With image input + Google Search + structured output
+const { output: imageResult } = await geminiService.callLLM(
+  "Who is this? Include latest news from KOMPAS.com",
+  {
+    filePaths: ["https://example.com/jokowi.jpg"],
+    zodSchema: schema,
+    useTools: true, // Will use two-step process
+  }
+);
+
+// Generate embeddings
+const { embeddings } = await geminiService.embedContent(
+  "Hello world",
+  { taskType: "RETRIEVAL_DOCUMENT" }
+);
+console.log(embeddings); // [[0.123, 0.456, ...]]
+```
+
+#### Gemini SDK Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `systemPrompt` | `string` | - | System instruction |
+| `zodSchema` | `ZodType` | - | Zod schema for structured output |
+| `filePaths` | `string[]` | - | Local paths or URLs to images/files |
+| `model` | `string` | `gemini-2.5-flash` | Model to use |
+| `history` | `array` | - | Chat history `[{ role, content }]` |
+| `topK` | `number` | `5` | Number of relevant history messages |
+| `isRag` | `boolean` | `true` | Enable RAG for history filtering |
+| `useTools` | `boolean` | `true` | Enable Google Search + URL Context |
+| `useFileSearch` | `boolean` | `false` | Enable File Search (vector store) |
+| `timeoutMs` | `number` | - | Request timeout in milliseconds |
+
+---
+
+### ⚠️ Important: Gemini SDK Limitation
+
+> **Warning**: Gemini API does **NOT** support using tools (Google Search, URL Context, File Search) together with structured output (Zod schema) in the same request.
+
+When you use `zodSchema` with `useTools: true`, the SDK automatically handles this with a **two-step process**:
+
+1. **Step 1**: Call with tools using `gemini-2.5-flash` to get tool-enhanced response
+2. **Step 2**: Call with the tool response + original prompt to generate structured output
+
+**⚠️ This means DOUBLE API costs when using both features together!**
+
+```typescript
+// Single API call (cheaper)
+const { output } = await geminiService.callLLM("Hello", {
+  useTools: false,
+  zodSchema: schema,
+});
+
+// Single API call (cheaper)
+const { output } = await geminiService.callLLM("Latest news?", {
+  useTools: true,
+  // No zodSchema
+});
+
+// ⚠️ TWO API calls (double cost)
+const { output } = await geminiService.callLLM("Latest news?", {
+  useTools: true,
+  zodSchema: schema, // This triggers two-step process
+});
+```
+
+---
+
+### Zod Schema Builder
+
+ENDEAVOUR includes a dynamic Zod schema builder for JSON-based schema definitions:
+
+```typescript
+import { buildZodSchema } from "@/shared/zodSchemaBuilder/zodBuilder";
+import { FieldSchema } from "@/shared/zodSchemaBuilder/metaSchema";
+
+const userFormSchema: FieldSchema[] = [
+  { fieldName: "name", type: "string", required: true, minLength: 2 },
+  { fieldName: "age", type: "number", min: 0, max: 150 },
+  { fieldName: "isActive", type: "boolean" },
+  {
+    fieldName: "address",
+    type: "object",
+    fields: [
+      { fieldName: "city", type: "string" },
+      { fieldName: "zip", type: "string" },
+    ],
+  },
+];
+
+const zodSchema = buildZodSchema(userFormSchema);
+
+// Use with LLM
+const { output } = await geminiService.callLLM("Generate user data", {
+  zodSchema,
+});
+```
 
 ---
 

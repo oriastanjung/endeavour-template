@@ -23,7 +23,9 @@ export const MergeNodeComponent = memo(
           )
         }
       >
-        <p className="text-xs text-muted-foreground">Merges execution paths</p>
+        <p className="text-xs text-muted-foreground text-center">
+          Merges execution paths
+        </p>
       </NodeWrapper>
     );
   }

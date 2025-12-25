@@ -16,3 +16,5 @@ export const BULLMQ_CONFIG = {
   REDIS_PORT: process.env.REDIS_PORT || "6379",
   REDIS_PASSWORD: process.env.REDIS_PASSWORD || "",
 };
+
+export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

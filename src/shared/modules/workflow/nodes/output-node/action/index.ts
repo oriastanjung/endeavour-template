@@ -14,29 +14,66 @@ export const outputAction: NodeAction = async (input, ctx) => {
   };
 
   console.log("input output node >> ", input);
-  const key = config.outputKey ?? config.key ?? "result";
-  const captureAll = config.captureAll ?? true;
+
+  let key = config.outputKey ?? config.key ?? "result";
+  let captureAll = config.captureAll ?? true;
+  let outputValue = config.outputValue ?? config.expression;
+
+  // Smart detection: if outputKey looks like a path expression, treat it as the value to retrieve
+  // This handles cases where users put "nodes.[nodeId].output.xxx" in the outputKey field
+  const isPathExpression =
+    key.includes("nodes.") ||
+    key.includes("{{") ||
+    key.includes("state.") ||
+    key.match(/\.[a-zA-Z]+\-\d+\./);
+
+  if (isPathExpression) {
+    // User put an expression in outputKey, so use it as the value and reset key to "result"
+    outputValue = key;
+    key = "result";
+    captureAll = false;
+  }
 
   let valueExpression = captureAll
     ? "{{json state}}"
-    : config.outputValue ?? config.expression ?? "{{json state}}";
+    : outputValue ?? "{{json state}}";
 
-  const simpleVarPattern = /^\s*{{\s*([a-zA-Z0-9_\.\-\[\]"']+)\s*}}\s*$/;
-  if (!captureAll && simpleVarPattern.test(valueExpression)) {
-    let varPath = valueExpression.replace(simpleVarPattern, "$1");
+  // If the expression doesn't have handlebars syntax, wrap it
+  if (!captureAll && !valueExpression.includes("{{")) {
+    // It's a raw path like "nodes.[http.request-xxx].output.body.results"
+    // First normalize the path format for handlebars bracket notation
+    let varPath = valueExpression;
 
-    const complexNodeIdPattern = /^nodes\.([a-zA-Z0-9_\.]+\-\d+)(\..+)$/;
+    // Handle complex node IDs with dashes (e.g., http.request-1234567)
+    const complexNodeIdPattern = /nodes\.([a-zA-Z0-9_\.]+\-\d+)(\..+)?$/;
     const match = varPath.match(complexNodeIdPattern);
 
     if (match) {
-      varPath = `nodes.[${match[1]}]${match[2]}`;
+      varPath = `nodes.[${match[1]}]${match[2] ?? ""}`;
     }
 
     valueExpression = `{{{json ${varPath}}}}`;
+  } else if (!captureAll) {
+    // Expression has handlebars syntax, ensure proper formatting
+    const simpleVarPattern = /^\s*{{\s*([a-zA-Z0-9_\.\-\[\]"']+)\s*}}\s*$/;
+    if (simpleVarPattern.test(valueExpression)) {
+      let varPath = valueExpression.replace(simpleVarPattern, "$1");
+
+      const complexNodeIdPattern = /^nodes\.([a-zA-Z0-9_\.]+\-\d+)(\..+)$/;
+      const match = varPath.match(complexNodeIdPattern);
+
+      if (match) {
+        varPath = `nodes.[${match[1]}]${match[2]}`;
+      }
+
+      valueExpression = `{{{json ${varPath}}}}`;
+    }
   }
 
-  // Render the expression
-  const value = ctx.render(valueExpression);
+  console.log("output node valueExpression >> ", valueExpression);
+
+  // Render the expression with full context
+  const value = ctx.render(valueExpression, { input, state: ctx.state });
 
   // Try to parse as JSON if possible
   let parsedValue: unknown = value;

@@ -1019,10 +1019,11 @@ NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
 - [X] Bull Board dashboard with password protection
 - [X] OpenAI SDK integration
 - [X] Gemini SDK integration
+- [X] Workflow Engine
 
 ### 🔄 In Progress
 
-- [ ] Workflow engine
+- [ ] More workflow node types
 
 ### 📋 Planned
 
@@ -1032,6 +1033,422 @@ NEXT_PUBLIC_BULL_BOARD_URL=http://localhost:3001
 - [ ] API documentation (OpenAPI)
 - [ ] E2E testing with Playwright
 - [ ] CI/CD pipelines
+
+---
+
+## ⚙️ Workflow Engine
+
+ENDEAVOUR includes a powerful **Workflow Engine** for building visual automation pipelines. It features a drag-and-drop canvas UI, configurable nodes with Handlebars templating, BullMQ-based execution, and real-time status updates.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Visual Canvas** | Drag-and-drop workflow builder with React Flow |
+| **14+ Node Types** | Triggers, Actions, Logic, and Data nodes |
+| **Handlebars Templating** | Dynamic variable interpolation `{{variable}}` |
+| **BullMQ Execution** | Distributed, fault-tolerant job processing |
+| **Cron Scheduling** | Automatic cron trigger registration |
+| **Webhook Triggers** | External API triggering via webhooks |
+| **Node Generator CLI** | Scaffold new node types in seconds |
+
+---
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           WORKFLOW ENGINE                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────┐    ┌─────────────────────┐   ┌─────────────────┐  │
+│  │   UI Layer          │    │   Backend Layer     │   │   Worker Layer  │  │
+│  │   (React Flow)      │    │   (tRPC + Prisma)   │   │   (BullMQ)      │  │
+│  │                     │    │                     │   │                 │  │
+│  │  • Canvas Editor    │───▶│  • Workflow CRUD    │──▶│  • Workflow     │  │
+│  │  • Node Properties  │    │  • Execution API    │   │    Worker       │  │
+│  │  • Sidebar (Nodes)  │    │  • Webhook Handler  │   │  • Node Worker  │  │
+│  │  • Execution View   │    │  • Event Publisher  │   │  • Cron Jobs    │  │
+│  └─────────────────────┘    └─────────────────────┘   └─────────────────┘  │
+│                                      │                        │             │
+│                                      ▼                        ▼             │
+│                            ┌─────────────────────────────────────────┐      │
+│                            │        PostgreSQL + Redis               │      │
+│                            │  • Workflow, Nodes, Edges tables        │      │
+│                            │  • Execution, NodeRun tracking          │      │
+│                            │  • BullMQ job queues                    │      │
+│                            └─────────────────────────────────────────┘      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### File Structure
+
+```
+src/shared/modules/workflow/
+├── backend/                    # Server-side execution
+│   ├── engine/                 # DAG graph utilities
+│   │   ├── graph.ts           # buildGraph, computeNextNodes, topologicalSort
+│   │   └── templating.ts      # Handlebars rendering
+│   ├── queue/                  # BullMQ queues
+│   │   ├── index.ts           # workflowQueue, addNodeJob
+│   │   └── events.ts          # Real-time event publishing
+│   ├── workers/                # BullMQ workers
+│   │   ├── workflow.worker.ts # Orchestration worker
+│   │   └── node.worker.ts     # Individual node processor
+│   ├── services/               # Workflow services
+│   └── trpc/                   # tRPC routers
+├── nodes/                      # Node implementations
+│   ├── manual-trigger-node/    # Manual trigger
+│   ├── cron-trigger-node/      # Cron scheduling
+│   ├── webhook-trigger-node/   # Webhook listener
+│   ├── condition-node/         # If/Else branching
+│   ├── switch-node/            # Multi-branch routing
+│   ├── merge-node/             # Branch merging
+│   ├── wait-node/              # Delay execution
+│   ├── http-request-node/      # HTTP calls
+│   ├── set-node/               # Set variables
+│   ├── edit-fields-node/       # Transform data
+│   ├── item-lists-node/        # Array operations
+│   ├── code-node/              # Custom JavaScript
+│   └── output-node/            # Final output
+├── ui/                         # React components
+│   ├── components/             # Canvas, Sidebar, NodeProperties
+│   ├── pages/                  # Workflow pages
+│   └── context/                # React context
+├── types/                      # TypeScript types
+│   └── Workflow.ts            # Node types, data interfaces
+└── prisma/
+    └── Workflow.prisma         # Database schema
+```
+
+---
+
+### Entity Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    Workflow ||--o{ WorkflowNode : contains
+    Workflow ||--o{ WorkflowEdge : contains
+    Workflow ||--o{ WorkflowExecution : has
+    Workflow ||--o{ Trigger : has
+    
+    WorkflowNode ||--o{ WorkflowEdge : source
+    WorkflowNode ||--o{ WorkflowEdge : target
+    WorkflowNode ||--o{ WorkflowNodeRun : executed_as
+    
+    WorkflowExecution ||--o{ WorkflowNodeRun : contains
+    
+    Workflow {
+        string id PK
+        string name
+        string description
+        string ownerId
+        boolean isActive
+        int version
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    WorkflowNode {
+        string id PK
+        string workflowId FK
+        string type
+        string label
+        float positionX
+        float positionY
+        json config
+        json stateSchema
+    }
+    
+    WorkflowEdge {
+        string id PK
+        string workflowId FK
+        string sourceNodeId FK
+        string targetNodeId FK
+        string label
+        string sourceHandle
+        string targetHandle
+        json condition
+    }
+    
+    WorkflowExecution {
+        string id PK
+        string workflowId FK
+        string triggerType
+        enum status
+        datetime startedAt
+        datetime finishedAt
+        json stateIn
+        json stateOut
+        json error
+    }
+    
+    WorkflowNodeRun {
+        string id PK
+        string executionId FK
+        string workflowId FK
+        string nodeId FK
+        enum status
+        datetime startedAt
+        datetime finishedAt
+        json input
+        json output
+        json error
+    }
+    
+    Trigger {
+        string id PK
+        string workflowId FK
+        string type
+        string cronExpr
+        string timezone
+        boolean isActive
+    }
+```
+
+---
+
+### Execution Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Canvas UI
+    participant API as tRPC API
+    participant WQ as WorkflowQueue
+    participant WW as WorkflowWorker
+    participant NQ as NodeQueue
+    participant NW as NodeWorker
+    participant DB as PostgreSQL
+
+    User->>UI: Click "Execute"
+    UI->>API: mutation.execute({ workflowId })
+    API->>DB: Create WorkflowExecution
+    API->>WQ: addJob({ workflowId, executionId })
+    API-->>UI: Return executionId
+    
+    WQ->>WW: Process workflow job
+    WW->>DB: Get workflow nodes/edges
+    WW->>DB: Find trigger nodes
+    
+    loop For each trigger node
+        WW->>DB: Create WorkflowNodeRun (PENDING)
+        WW->>NQ: addNodeJob({ nodeId, executionId })
+    end
+    
+    NQ->>NW: Process node job
+    NW->>DB: Update nodeRun (RUNNING)
+    NW->>NW: Execute node action
+    NW->>NW: Render Handlebars templates
+    NW->>DB: Update nodeRun (SUCCESS/FAILED)
+    
+    NW->>NW: computeNextNodes()
+    
+    loop For each next node
+        NW->>DB: Create WorkflowNodeRun (PENDING)
+        NW->>NQ: addNodeJob({ nextNodeId })
+    end
+    
+    Note over NW: Continue until no more nodes
+    
+    NW->>DB: Update execution (SUCCESS)
+    NW-->>UI: Publish completion event
+```
+
+---
+
+### Node Types
+
+#### Triggers (Start Points)
+
+| Node | Type | Description |
+|------|------|-------------|
+| **Manual Trigger** | `manual.trigger` | Start workflow manually |
+| **Cron Trigger** | `cron.trigger` | Schedule-based execution |
+| **Webhook Trigger** | `webhook.trigger` | External API trigger |
+
+#### Actions
+
+| Node | Type | Description |
+|------|------|-------------|
+| **HTTP Request** | `http.request` | Make HTTP/REST calls |
+| **Output** | `output` | Final workflow output |
+
+#### Logic
+
+| Node | Type | Description |
+|------|------|-------------|
+| **Condition** | `condition` | If/Else branching |
+| **Switch** | `switch` | Multi-branch routing |
+| **Merge** | `merge` | Combine parallel branches |
+| **Wait** | `wait` | Delay execution |
+
+#### Data
+
+| Node | Type | Description |
+|------|------|-------------|
+| **Set** | `set` | Set variables |
+| **Edit Fields** | `edit.fields` | Transform/modify data |
+| **Item Lists** | `item.lists` | Array operations (limit, sort) |
+| **Code** | `code` | Custom JavaScript execution |
+
+---
+
+### Node Structure
+
+Each node has 4 components:
+
+```
+nodes/{node-name}-node/
+├── action/
+│   └── index.ts         # Node execution logic (backend)
+├── sheet/
+│   └── index.ts         # Zod schema + config defaults
+└── ui/
+    ├── index.tsx        # Node canvas component
+    └── form.tsx         # Properties panel form
+```
+
+#### Example: Code Node Action
+
+```typescript
+// nodes/code-node/action/index.ts
+export const CodeNodeAction: NodeAction = async (input, ctx) => {
+  const config = input as CodeNodeConfig;
+  
+  // Render Handlebars templates in code
+  const code = ctx.render(config.code);
+  
+  await ctx.log("info", "Executing code", { codeLength: code.length });
+  
+  // Create safe execution context
+  const fn = new Function("$", "$nodes", "$state", code);
+  const result = fn(ctx.input, ctx.nodes, ctx.state);
+  
+  return {
+    output: result,
+    nextEdgeLabel: undefined,
+  };
+};
+```
+
+---
+
+### How to Create a New Node
+
+Use the Node Generator CLI:
+
+```bash
+bun run node:create
+```
+
+```
+🚀 WORKFLOW NODE GENERATOR
+
+? Enter node name (e.g., Openai): Slack
+? Enter node category: Actions
+
+  ✓ Node Name: Slack
+  ℹ Type: slack
+  ℹ Folder: nodes/slack-node
+  ℹ Category: Actions
+
+[Step 2] Creating Files
+  📄 Created: nodes/slack-node/action/index.ts
+  📄 Created: nodes/slack-node/sheet/index.ts
+  📄 Created: nodes/slack-node/ui/form.tsx
+  📄 Created: nodes/slack-node/ui/index.tsx
+
+[Step 3] Updating NodePropertiesSheet.tsx
+  ✓ Injected import and switch case
+
+[Step 4] Updating Workflow.ts
+  ✓ Updated NodeType union
+  ✓ Updated NodeData interface
+
+[Step 5] Updating Sidebar.tsx
+  ✓ Added node to Actions category
+
+✨ Node created successfully! ✨
+```
+
+The generator:
+1. Creates the node folder structure
+2. Generates boilerplate action, schema, and UI files
+3. Auto-injects imports and registrations into:
+   - `NodePropertiesSheet.tsx`
+   - `Workflow.ts` (types)
+   - `Sidebar.tsx` (node list)
+
+---
+
+### Handlebars Templating
+
+All node configs support Handlebars templating for dynamic values:
+
+```typescript
+// Access previous node outputs
+"{{nodes.http-request-123.output.data}}"
+
+// Access execution state
+"{{state.userId}}"
+
+// Access current input
+"{{input.message}}"
+
+// Conditionals
+"{{#if nodes.condition-1.output}}Yes{{else}}No{{/if}}"
+
+// Loops
+"{{#each items}}{{this.name}}{{/each}}"
+```
+
+---
+
+### Running Workflow Workers
+
+```bash
+# Start all workers (includes workflow workers)
+bun run workers:run
+
+# Or start individually
+bun run dev:all   # Next.js + Workers + Bull Board
+```
+
+Workers automatically:
+- Process `workflow_queue` jobs (orchestration)
+- Process `node_{type}` jobs (individual nodes)
+- Register cron triggers from database
+- Handle retries and failures
+
+---
+
+### Webhook Trigger
+
+Trigger workflows externally via webhooks:
+
+```bash
+# POST /api/webhooks/workflow/[workflowId]
+curl -X POST https://your-app.com/api/webhooks/workflow/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello from webhook"}'
+```
+
+The webhook payload is available in the workflow as `{{input.body}}`.
+
+---
+
+### Workflow UI Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| **Workflow List** | `/workflow` | List all workflows |
+| **Workflow Editor** | `/workflow/[id]` | Canvas editor |
+| **Execution History** | Embedded | View execution logs |
+
 
 ---
 
@@ -1299,7 +1716,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 👨‍💻 Credits
 
-Created and maintained by **[Orias Tanjung](https://github.com/oriastanjung)**
+Created and maintained by **[O. Riastanjung](https://github.com/oriastanjung)**
 
 ---
 

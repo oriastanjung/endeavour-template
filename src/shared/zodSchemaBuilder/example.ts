@@ -25,6 +25,11 @@ const userFormSchema: FieldSchema[] = [
       { fieldName: "zip", type: "string" },
     ],
   },
+  {
+    fieldName: "moreInformation",
+    type: "string",
+    required: true,
+  },
 ];
 
 const userZodSchema = buildZodSchema(userFormSchema);
@@ -36,6 +41,7 @@ const result = userZodSchema.safeParse({
     city: "Bandung",
     zip: "12345",
   },
+  moreInformation: "more information in here",
 });
 
 export { result, userZodSchema };
